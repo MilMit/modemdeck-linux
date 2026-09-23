@@ -55,6 +55,7 @@ chmod +x "$LINUXDEPLOY"
 # ModemManager/NetworkManager/Polkit are intentionally NOT bundled: they are host
 # system services and a second private copy would conflict with the running OS.
 export OUTPUT="MilMit-ModemDeck-${VERSION}-${APP_ARCH}.AppImage"
+export LDAI_OUTPUT="$OUTPUT"
 "$LINUXDEPLOY" --appimage-extract-and-run \
   --appdir "$APPDIR" \
   --executable "$APPDIR/usr/bin/modemdeck" \
@@ -62,12 +63,15 @@ export OUTPUT="MilMit-ModemDeck-${VERSION}-${APP_ARCH}.AppImage"
   --icon-file "$APPDIR/usr/share/icons/hicolor/scalable/apps/net.milmit.ModemDeck.svg" \
   --output appimage
 
-FOUND="$(find . -maxdepth 1 -type f -name 'ModemDeck*.AppImage' -print -quit)"
-if [[ -n "$FOUND" ]]; then
+FOUND="$ROOT_DIR/$OUTPUT"
+if [[ ! -f "$FOUND" ]]; then
+  FOUND="$(find "$ROOT_DIR" -maxdepth 1 -type f -name '*ModemDeck*.AppImage' -print -quit)"
+fi
+if [[ -n "$FOUND" && -f "$FOUND" ]]; then
   mkdir -p target/dist
   mv "$FOUND" "target/dist/$OUTPUT"
   echo "$ROOT_DIR/target/dist/$OUTPUT"
 else
-  echo "AppImage output was not found." >&2
+  echo "AppImage output was not found after appimagetool completed." >&2
   exit 1
 fi
