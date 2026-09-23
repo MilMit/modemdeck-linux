@@ -1,1 +1,2 @@
 ModemDeck Linux release build trigger for v1.0.0-rc1.4
+retry after CI compile fixes
