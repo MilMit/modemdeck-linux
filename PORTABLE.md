@@ -16,7 +16,7 @@ Runtime OS services/packages:
 - GTK 4 runtime (`libgtk-4-1`)
 - ModemManager
 - NetworkManager
-- Polkit
+- Polkit authorization via `pkexec` (the `pkexec` package pulls in the required polkit daemon)
 
 These are host services. They are deliberately not duplicated inside ModemDeck because doing so would create competing modem/network managers.
 

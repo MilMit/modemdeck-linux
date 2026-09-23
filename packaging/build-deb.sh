@@ -33,7 +33,7 @@ Section: net
 Priority: optional
 Architecture: $ARCH
 Maintainer: MilMit
-Depends: libgtk-4-1, modemmanager, network-manager, policykit-1
+Depends: libgtk-4-1, modemmanager, network-manager, pkexec
 Homepage: https://milmit.net
 Description: ModemDeck by MilMit — lightweight graphical cellular modem manager for Linux
  ModemDeck by MilMit provides live modem telemetry, safe band controls, APN and SIM

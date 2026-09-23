@@ -9,7 +9,7 @@ sudo apt install -y \
   libglib2.0-dev \
   modemmanager \
   network-manager \
-  policykit-1 \
+  pkexec \
   curl
 
 if ! command -v rustup >/dev/null 2>&1; then
