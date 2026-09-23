@@ -12,12 +12,7 @@ PKGROOT="$ROOT_DIR/target/deb-root"
 mkdir -p "$ROOT_DIR/target/dist"
 OUT="$ROOT_DIR/target/dist/MilMit-ModemDeck-${VERSION}-${ARCH}.deb"
 rm -rf "$PKGROOT"
-mkdir -p "$PKGROOT/DEBIAN" \
-         "$PKGROOT/usr/bin" \
-         "$PKGROOT/usr/share/applications" \
-         "$PKGROOT/usr/share/icons/hicolor/scalable/apps" \
-         "$PKGROOT/usr/lib/systemd/user" \
-         "$PKGROOT/usr/share/gnome-shell/extensions/modemdeck@milmit.net"
+mkdir -p "$PKGROOT/DEBIAN"          "$PKGROOT/usr/bin"          "$PKGROOT/usr/share/applications"          "$PKGROOT/usr/share/icons/hicolor/scalable/apps"          "$PKGROOT/usr/lib/systemd/user"          "$PKGROOT/usr/share/gnome-shell/extensions/modemdeck@milmit.net"
 
 cargo build --release
 install -m 0755 target/release/modemdeck "$PKGROOT/usr/bin/modemdeck"
@@ -33,7 +28,8 @@ Section: net
 Priority: optional
 Architecture: $ARCH
 Maintainer: MilMit
-Depends: libgtk-4-1, modemmanager, network-manager, pkexec
+Depends: libgtk-4-1, modemmanager, network-manager
+Recommends: pkexec
 Homepage: https://milmit.net
 Description: ModemDeck by MilMit — lightweight graphical cellular modem manager for Linux
  ModemDeck by MilMit provides live modem telemetry, safe band controls, APN and SIM
