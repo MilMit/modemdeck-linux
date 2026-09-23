@@ -30,5 +30,21 @@ fn main() -> io::Result<()> {
         &manifest.join("src/parts/ui"),
         &out.join("ui_impl.rs"),
     )?;
+
+    // ui_impl.rs is generated inside OUT_DIR, so legacy relative include_str!
+    // paths resolve one directory above OUT_DIR. Mirror the two embedded UI
+    // resources there to keep generated-source compilation deterministic.
+    let generated_root = out
+        .parent()
+        .expect("OUT_DIR must have a parent directory");
+    fs::copy(manifest.join("CHANGELOG.md"), generated_root.join("CHANGELOG.md"))?;
+    fs::create_dir_all(generated_root.join("assets"))?;
+    fs::copy(
+        manifest.join("assets/style.css"),
+        generated_root.join("assets/style.css"),
+    )?;
+
+    println!("cargo:rerun-if-changed=CHANGELOG.md");
+    println!("cargo:rerun-if-changed=assets/style.css");
     Ok(())
 }
