@@ -1,3 +1,10 @@
+## 1.0.0-rc1.4.1 — Tested Ubuntu package
+
+- GitHub Actions build passes for Rust, Debian package, AppImage, source archive and checksums.
+- Debian package no longer hard-depends on legacy `policykit-1`; `pkexec` is recommended for privileged vendor reads.
+- The `.deb` package was installed successfully on the target Ubuntu system and the ModemDeck GUI launched successfully.
+- Published as the first tested RC release on GitHub.
+
 ## 1.0.0-rc1.4 — Smooth live UI
 
 - ModemManager D-Bus signal changes no longer rebuild the whole modem page.

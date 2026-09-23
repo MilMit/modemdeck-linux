@@ -11,6 +11,19 @@
 
 ModemDeck is a lightweight native GTK4 cellular modem manager for Ubuntu/Linux, developed by **MilMit**. It uses ModemManager/NetworkManager and small event-driven helpers instead of an Electron/Chromium runtime or a continuous `mmcli` polling loop.
 
+
+## Tested RC release
+
+The currently tested package is **v1.0.0-rc1.4.1**. It has been built successfully by GitHub Actions and installed successfully on the target Ubuntu system.
+
+Download the Debian package from the GitHub Releases page and install it with:
+
+```bash
+sudo apt install ./MilMit-ModemDeck-1.0.0-rc1.4.1-amd64.deb
+```
+
+Release page: https://github.com/MilMit/modemdeck-linux/releases/tag/v1.0.0-rc1.4.1
+
 ## What RC1 includes
 
 ### Radio dashboard

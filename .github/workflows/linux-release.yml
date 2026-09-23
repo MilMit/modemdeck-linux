@@ -68,6 +68,33 @@ jobs:
             --title "ModemDeck Linux ${GITHUB_REF_NAME}" \
             --generate-notes
 
+      - name: Publish approved RC release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ -f .github/FINAL_RELEASE ]] || exit 0
+          VERSION="$(awk -F'"' '/^version = / {print $2; exit}' Cargo.toml)"
+          TAG="$(tr -d '\r\n ' < .github/FINAL_RELEASE)"
+          EXPECTED="v${VERSION}"
+          if [[ "$TAG" != "$EXPECTED" ]]; then
+            echo "FINAL_RELEASE says $TAG but Cargo.toml says $EXPECTED" >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Official release $TAG already exists; leaving it unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "${GITHUB_SHA}" -m "ModemDeck Linux $TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" target/dist/* \
+            --title "ModemDeck Linux $TAG" \
+            --notes-file .github/RELEASE_NOTES.md \
+            --prerelease
+
       - name: Publish latest nightly prerelease
         if: github.ref == 'refs/heads/main'
         env:

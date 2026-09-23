@@ -1,6 +1,6 @@
 name: modemdeck
 base: core24
-version: '1.0.0-rc1.4'
+version: '1.0.0-rc1.4.1'
 summary: Graphical cellular modem manager by MilMit
 description: |
   ModemDeck is a lightweight GTK4 cellular modem manager for Linux with live

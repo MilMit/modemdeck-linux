@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0-rc1",
-  "url": "https://milmit.net/modemdeck/",
-  "notes": "ModemDeck by MilMit v1.0 RC1"
+  "version": "1.0.0-rc1.4.1",
+  "url": "https://github.com/MilMit/modemdeck-linux/releases/tag/v1.0.0-rc1.4.1",
+  "notes": "ModemDeck Linux by MilMit v1.0.0-rc1.4.1 — tested Ubuntu RC"
 }
