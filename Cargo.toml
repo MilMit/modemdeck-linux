@@ -1,6 +1,6 @@
 [package]
 name = "modemdeck"
-version = "1.0.0-rc1.4"
+version = "1.0.0-rc1.4.1"
 edition = "2024"
 description = "ModemDeck by MilMit — a lightweight graphical cellular modem manager for Linux"
 license = "GPL-3.0-or-later"
