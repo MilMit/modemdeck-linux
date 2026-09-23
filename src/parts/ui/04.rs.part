@@ -1,0 +1,145 @@
+ row = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+                row.add_css_class("message-row");
+                let body = gtk::Box::new(gtk::Orientation::Vertical, 3);
+                body.set_hexpand(true);
+                let meta = gtk::Label::new(Some(&format!("{} • {}{}", value_or_dash(&sms.number), sms.state_label(), if sms.timestamp.is_empty() { String::new() } else { format!(" • {}", sms.timestamp) })));
+                meta.set_xalign(0.0);
+                meta.add_css_class("metric-title");
+                body.append(&meta);
+                let text = gtk::Label::new(Some(if sms.text.is_empty() { "(binary / empty SMS)" } else { &sms.text }));
+                text.set_xalign(0.0);
+                text.set_wrap(true);
+                text.set_selectable(true);
+                body.append(&text);
+                row.append(&body);
+                let delete = gtk::Button::builder().icon_name("user-trash-symbolic").tooltip_text("Delete SMS from modem storage").build();
+                let modem_path = modem_path.to_string();
+                let sms_path = sms.path.clone();
+                let status = status.clone();
+                delete.connect_clicked(move |button| {
+                    match communications::delete_sms(&modem_path, &sms_path) {
+                        Ok(()) => {
+                            button.set_sensitive(false);
+                            status.remove_css_class("error-label");
+                            status.set_text("SMS deleted. Refresh the list to update the view.");
+                        }
+                        Err(error) => {
+                            status.add_css_class("error-label");
+                            status.set_text(&error);
+                        }
+                    }
+                });
+                row.append(&delete);
+                list.append(&row);
+            }
+        }
+        Err(error) => {
+            let label = gtk::Label::new(Some(&error));
+            label.set_xalign(0.0);
+            label.set_wrap(true);
+            label.add_css_class("error-label");
+            list.append(&label);
+        }
+    }
+}
+
+fn calls_and_ussd_panel(
+    modem: &ModemInfo,
+    client: &Rc<ModemManagerClient>,
+    _stack: &gtk::Stack,
+    _switcher: &gtk::StackSwitcher,
+    status: &gtk::Label,
+) -> gtk::Widget {
+    const VOICE: &str = "org.freedesktop.ModemManager1.Modem.Voice";
+    const USSD: &str = "org.freedesktop.ModemManager1.Modem.Modem3gpp.Ussd";
+    let root = gtk::Box::new(gtk::Orientation::Vertical, 14);
+
+    let voice_panel = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    voice_panel.add_css_class("communications-panel");
+    let voice_title = gtk::Label::new(Some("Voice calls"));
+    voice_title.set_xalign(0.0);
+    voice_title.add_css_class("section-title");
+    voice_panel.append(&voice_title);
+    if client.has_interface(&modem.object_path, VOICE) {
+        let note = gtk::Label::new(Some("Call control is available. Working call audio is a separate hardware/firmware capability; ModemDeck will not claim audio support unless the modem exposes a usable audio path."));
+        note.set_xalign(0.0);
+        note.set_wrap(true);
+        note.add_css_class("dim-label");
+        voice_panel.append(&note);
+        let dial_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let number = gtk::Entry::new();
+        number.set_placeholder_text(Some("Phone number"));
+        number.set_hexpand(true);
+        let dial = gtk::Button::with_label("Dial");
+        dial.add_css_class("suggested-action");
+        let refresh = gtk::Button::with_label("Refresh calls");
+        dial_row.append(&number);
+        dial_row.append(&dial);
+        dial_row.append(&refresh);
+        voice_panel.append(&dial_row);
+        let calls = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        let hint = gtk::Label::new(Some("Call list loads on demand."));
+        hint.set_xalign(0.0);
+        hint.add_css_class("dim-label");
+        calls.append(&hint);
+        voice_panel.append(&calls);
+        {
+            let path = modem.object_path.clone();
+            let status = status.clone();
+            let calls = calls.clone();
+            refresh.connect_clicked(move |_| populate_calls(&calls, &path, &status));
+        }
+        {
+            let path = modem.object_path.clone();
+            let status = status.clone();
+            let calls = calls.clone();
+            let number = number.clone();
+            dial.connect_clicked(move |_| match communications::dial(&path, number.text().as_str()) {
+                Ok(()) => {
+                    status.remove_css_class("error-label");
+                    status.set_text("Outgoing call started through ModemManager.");
+                    populate_calls(&calls, &path, &status);
+                }
+                Err(error) => {
+                    status.add_css_class("error-label");
+                    status.set_text(&error);
+                }
+            });
+        }
+    } else {
+        let unavailable = gtk::Label::new(Some("Voice is not exposed by ModemManager for this modem/firmware. Dial/answer controls are therefore disabled."));
+        unavailable.set_xalign(0.0);
+        unavailable.set_wrap(true);
+        unavailable.add_css_class("warning-label");
+        voice_panel.append(&unavailable);
+    }
+    root.append(&voice_panel);
+
+    let ussd_panel = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    ussd_panel.add_css_class("communications-panel");
+    let ussd_title = gtk::Label::new(Some("USSD"));
+    ussd_title.set_xalign(0.0);
+    ussd_title.add_css_class("section-title");
+    ussd_panel.append(&ussd_title);
+    if client.has_interface(&modem.object_path, USSD) {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let command = gtk::Entry::new();
+        command.set_placeholder_text(Some("USSD code, e.g. *123#"));
+        command.set_hexpand(true);
+        let send = gtk::Button::with_label("Send");
+        let respond = gtk::Button::with_label("Respond");
+        let cancel = gtk::Button::with_label("Cancel session");
+        row.append(&command); row.append(&send); row.append(&respond); row.append(&cancel);
+        ussd_panel.append(&row);
+        let reply = gtk::Label::new(Some("No USSD request sent yet."));
+        reply.set_xalign(0.0);
+        reply.set_wrap(true);
+        reply.set_selectable(true);
+        reply.add_css_class("mono-detail");
+        ussd_panel.append(&reply);
+        {
+            let path = modem.object_path.clone(); let command=command.clone(); let reply=reply.clone(); let status=status.clone();
+            send.connect_clicked(move |_| match communications::initiate_ussd(&path, command.text().as_str()) {
+                Ok(text) => { reply.set_text(if text.is_empty() { "USSD request completed with an empty reply." } else { &text }); status.set_text("USSD request completed."); }
+                Err(error) => { status.add_css_class("error-label"); status.set_text(&error); }
+          

@@ -1,0 +1,159 @@
+(&modem, requested_bands) {
+            safety::clear_pending();
+            return Err(error);
+        }
+        self.invalidate_radio_snapshots(object_path, &device_uid);
+        self.band_change_cache.borrow_mut().insert(
+            object_path.to_string(),
+            BandChangeState {
+                previous_bands: previous,
+                requested_bands: requested_bands.to_vec(),
+                pending_confirmation: true,
+                generation,
+                message: "Band change applied. Confirm within 45 seconds or ModemDeck will restore the previous selection. Serving-radio snapshots were cleared; refresh radio details after the modem reconnects.".into(),
+            },
+        );
+        Ok(())
+    }
+
+    pub fn confirm_band_selection(&self, object_path: &str) {
+        safety::clear_pending();
+        if let Some(state) = self.band_change_cache.borrow_mut().get_mut(object_path) {
+            state.pending_confirmation = false;
+            state.previous_bands.clear();
+            state.message = "Band selection confirmed.".into();
+        }
+    }
+
+    pub fn band_change_pending(&self, object_path: &str) -> bool {
+        self.band_change_cache
+            .borrow()
+            .get(object_path)
+            .map(|state| state.pending_confirmation)
+            .unwrap_or(false)
+    }
+
+    pub fn band_change_generation(&self, object_path: &str) -> Option<u64> {
+        self.band_change_cache
+            .borrow()
+            .get(object_path)
+            .filter(|state| state.pending_confirmation)
+            .map(|state| state.generation)
+    }
+
+    pub fn rollback_band_selection(&self, object_path: &str) -> Result<(), String> {
+        let previous = self
+            .band_change_cache
+            .borrow()
+            .get(object_path)
+            .filter(|state| state.pending_confirmation)
+            .map(|state| state.previous_bands.clone())
+            .ok_or_else(|| "There is no pending band change to restore.".to_string())?;
+
+        if previous.is_empty() {
+            return Err("The previous band selection was not reported by ModemManager, so an automatic restore is not safe.".into());
+        }
+
+        let object = self
+            .manager
+            .object(object_path)
+            .ok_or_else(|| "The modem disappeared before the rollback could run.".to_string())?;
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)
+            .ok_or_else(|| "The generic Modem interface is unavailable.".to_string())?;
+        let modem = modem_iface
+            .dynamic_cast::<gio::DBusProxy>()
+            .map_err(|_| "Could not create the Modem D-Bus proxy.".to_string())?;
+        let device_uid = string_prop(&modem, "Device");
+
+        self.set_current_bands_proxy(&modem, &previous)?;
+        safety::clear_pending();
+        self.invalidate_radio_snapshots(object_path, &device_uid);
+        if let Some(state) = self.band_change_cache.borrow_mut().get_mut(object_path) {
+            state.pending_confirmation = false;
+            state.requested_bands = previous;
+            state.previous_bands.clear();
+            state.message = "Previous band selection restored. Refresh radio details after the modem reconnects.".into();
+        }
+        Ok(())
+    }
+
+    fn set_current_bands_proxy(&self, modem: &gio::DBusProxy, bands: &[u32]) -> Result<(), String> {
+        let parameters = (bands.to_vec(),).to_variant();
+        modem
+            .call_sync(
+                "SetCurrentBands",
+                Some(&parameters),
+                gio::DBusCallFlags::NONE,
+                20_000,
+                None::<&gio::Cancellable>,
+            )
+            .map(|_| ())
+            .map_err(|error| format!("Could not change modem bands: {error}"))
+    }
+
+    fn send_at_command(&self, object_path: &str, command: &str, timeout_seconds: u32) -> Result<String, String> {
+        let object = self
+            .manager
+            .object(object_path)
+            .ok_or_else(|| "The modem disappeared from ModemManager.".to_string())?;
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)
+            .ok_or_else(|| "The generic Modem interface is unavailable.".to_string())?;
+        let modem = modem_iface
+            .dynamic_cast::<gio::DBusProxy>()
+            .map_err(|_| "Could not create the Modem D-Bus proxy.".to_string())?;
+
+        let params = (command, timeout_seconds).to_variant();
+        let response = modem
+            .call_sync(
+                "Command",
+                Some(&params),
+                gio::DBusCallFlags::NONE,
+                ((timeout_seconds + 2) * 1000) as i32,
+                None::<&gio::Cancellable>,
+            )
+            .map_err(|error| error.to_string())?;
+
+        if response.n_children() == 0 {
+            return Ok(String::new());
+        }
+        Ok(response.child_value(0).get::<String>().unwrap_or_default())
+    }
+
+    fn modem_identity(&self, object_path: &str) -> Option<(String, String)> {
+        let object = self.manager.object(object_path)?;
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)?;
+        let modem = modem_iface.dynamic_cast::<gio::DBusProxy>().ok()?;
+        Some((string_prop(&modem, "Manufacturer"), string_prop(&modem, "Model")))
+    }
+
+    fn modem_device_uid(&self, object_path: &str) -> Option<String> {
+        let object = self.manager.object(object_path)?;
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)?;
+        let modem = modem_iface.dynamic_cast::<gio::DBusProxy>().ok()?;
+        Some(string_prop(&modem, "Device"))
+    }
+
+    fn modem_direct_at_details(&self, object_path: &str) -> Option<(String, Vec<String>)> {
+        let object = self.manager.object(object_path)?;
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)?;
+        let modem = modem_iface.dynamic_cast::<gio::DBusProxy>().ok()?;
+        let uid = string_prop(&modem, "Device");
+        let ports = at_ports_prop(&modem);
+        Some((uid, ports))
+    }
+
+    fn read_modem(&self, object: &gio::DBusObject) -> Option<ModemInfo> {
+        let modem_iface = gio::prelude::DBusObjectExt::interface(object, MODEM_IFACE)?;
+        let modem = modem_iface.dynamic_cast::<gio::DBusProxy>().ok()?;
+
+        let manufacturer = string_prop(&modem, "Manufacturer");
+        let model = string_prop(&modem, "Model");
+        let revision = string_prop(&modem, "Revision");
+        let equipment_id = string_prop(&modem, "EquipmentIdentifier");
+        let device_uid = string_prop(&modem, "Device");
+        let plugin = string_prop(&modem, "Plugin");
+        let primary_port = string_prop(&modem, "PrimaryPort");
+        let at_ports = ports_by_kind(&modem, 3);
+        let net_ports = ports_by_kind(&modem, 2);
+        let sim_path = modem.cached_property("Sim").and_then(|v| v.str().map(|s| s.to_string())).unwrap_or_default();
+        let unlock_required = u32_prop(&modem, "

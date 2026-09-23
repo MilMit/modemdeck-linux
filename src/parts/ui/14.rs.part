@@ -1,0 +1,107 @@
+ile.set_valign(gtk::Align::Center); restore_profile.set_size_request(48, 28);
+    root.append(&preference_row(i18n::tr("restore_profile"), "Reapply the active ModemDeck band profile after boot and resume. Enabling this also enables the background monitor.", &restore_profile));
+
+    let update_start = gtk::Switch::builder().active(settings.check_updates_on_startup).build();
+    update_start.add_css_class("compact-switch"); update_start.set_valign(gtk::Align::Center); update_start.set_size_request(48, 28);
+    root.append(&preference_row("Check updates on startup", "Reads the small MilMit update manifest after the UI opens. No analytics are sent by ModemDeck.", &update_start));
+
+    let interval = gtk::SpinButton::with_range(5.0, 60.0, 5.0);
+    interval.set_value(settings.normalized_refresh_seconds() as f64);
+    root.append(&preference_row("Signal refresh", "5–60 seconds. 10 seconds is a good low-overhead default for extended radio metrics.", &interval));
+
+    let traffic_interval = gtk::SpinButton::with_range(1.0, 30.0, 1.0);
+    traffic_interval.set_value(settings.normalized_traffic_refresh_seconds() as f64);
+    root.append(&preference_row("Traffic refresh", "1–30 seconds. This only reads kernel byte counters; it does not generate network traffic.", &traffic_interval));
+
+    let language=gtk::ComboBoxText::new();
+    language.append(Some("system"), i18n::tr("system")); language.append(Some("en"), i18n::tr("english")); language.append(Some("fa"), i18n::tr("persian"));
+    language.set_active_id(Some(&settings.language));
+    root.append(&preference_row(i18n::tr("language"), "English and Persian are bundled. System follows the current LANG locale. A restart applies language changes to every page.", &language));
+
+    let store=profiles::load();
+    let active=gtk::Label::new(Some(&format!("Active restore profile: {}", store.active_profile)));
+    active.set_xalign(0.0); active.add_css_class("dim-label"); root.append(&active);
+
+    let safety_note = gtk::Label::new(Some("Safety: before a band change, ModemDeck creates a local backup and persistent rollback transaction. A detached guard survives a GUI crash and restores the previous bands if the 45-second confirmation expires."));
+    safety_note.set_xalign(0.0); safety_note.set_wrap(true); safety_note.add_css_class("success-chip"); root.append(&safety_note);
+
+    let note = gtk::Label::new(Some("The GNOME top-bar extension watches a runtime status file and does not poll the modem itself. Daily/monthly usage is counted only while ModemDeck or its background monitor is running."));
+    note.set_xalign(0.0); note.set_wrap(true); note.add_css_class("dim-label"); root.append(&note);
+
+    let close = gtk::Button::with_label("Save and close"); close.add_css_class("suggested-action"); root.append(&close);
+    scroller.set_child(Some(&root)); window.set_child(Some(&scroller));
+    let root_widget: gtk::Widget = root.clone().upcast();
+    localize_widget_tree(&root_widget);
+
+    {
+        let window = window.clone(); let status = status.clone();
+        close.connect_clicked(move |_| {
+            let mut updated = Settings::load();
+            let previous_background = updated.background_monitor;
+            let previous_refresh = updated.signal_refresh_seconds;
+            let previous_traffic = updated.traffic_refresh_seconds;
+            let previous_notifications = updated.notifications;
+            let previous_restore = updated.restore_profile_on_startup;
+            updated.restore_profile_on_startup = restore_profile.is_active();
+            updated.background_monitor = background.is_active() || updated.restore_profile_on_startup;
+            updated.notifications = notifications.is_active();
+            updated.check_updates_on_startup = update_start.is_active();
+            updated.signal_refresh_seconds = interval.value_as_int().clamp(5, 60) as u32;
+            updated.traffic_refresh_seconds = traffic_interval.value_as_int().clamp(1, 30) as u32;
+            updated.language = language.active_id().map(|v| v.to_string()).unwrap_or_else(|| "system".into());
+            match updated.save() {
+                Ok(()) => {
+                    let monitor_relevant = previous_refresh != updated.signal_refresh_seconds || previous_traffic != updated.traffic_refresh_seconds || previous_notifications != updated.notifications || previous_restore != updated.restore_profile_on_startup;
+                    if previous_background != updated.background_monitor {
+                        match settings::set_background_monitor_enabled(updated.background_monitor) {
+                            Ok(message) => status.set_text(&message),
+                            Err(error) => { status.add_css_class("error-label"); status.set_text(&format!("Settings saved, but background monitor could not be changed: {error}")); }
+                        }
+                    } else if updated.background_monitor && monitor_relevant {
+                        match settings::restart_background_monitor() {
+                            Ok(()) => status.set_text("Preferences saved and background monitor restarted."),
+                            Err(error) => { status.add_css_class("error-label"); status.set_text(&format!("Preferences saved, but monitor restart failed: {error}")); }
+                        }
+                    } else { status.set_text("Preferences saved. Restart ModemDeck to apply language and GUI refresh changes."); }
+                }
+                Err(error) => { status.add_css_class("error-label"); status.set_text(&format!("Could not save preferences: {error}")); }
+            }
+            window.close();
+        });
+    }
+    window.present();
+}
+
+fn preference_row<W: IsA<gtk::Widget>>(title: &str, description: &str, control: &W) -> gtk::Widget {
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 14);
+    row.add_css_class("preference-row");
+    let text = gtk::Box::new(gtk::Orientation::Vertical, 3);
+    text.set_hexpand(true);
+    let title_label = gtk::Label::new(Some(title));
+    title_label.set_xalign(0.0);
+    title_label.add_css_class("section-title");
+    let description_label = gtk::Label::new(Some(description));
+    description_label.set_xalign(0.0);
+    description_label.set_wrap(true);
+    description_label.add_css_class("dim-label");
+    text.append(&title_label);
+    text.append(&description_label);
+    row.append(&text);
+    row.append(control);
+    row.upcast::<gtk::Widget>()
+}
+
+fn live_widget_name(kind: &str, object_path: &str) -> String {
+    let safe_path: String = object_path.chars().map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' }).collect();
+    format!("live-{kind}-{safe_path}")
+}
+
+fn find_named_widget<T>(root: &gtk::Widget, name: &str) -> Option<T>
+where
+    T: IsA<gtk::Widget> + Clone + 'static,
+{
+    if root.widget_name().as_str() == name {
+        if let Ok(widget) = root.clone().downcast::<T>() { return Some(widget); }
+    }
+
+    let mut child = roo

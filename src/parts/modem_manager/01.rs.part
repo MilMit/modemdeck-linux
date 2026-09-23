@@ -1,0 +1,161 @@
+Modem interface is unavailable.".to_string())?;
+        let modem = iface.dynamic_cast::<gio::DBusProxy>().map_err(|_| "Could not create modem proxy.".to_string())?;
+        let previous = vec_u32_prop(&modem, "CurrentBands");
+        let device_uid = string_prop(&modem, "Device");
+        if previous != bands {
+            let _ = safety::backup_band_state(&device_uid, object_path, &previous, "Automatic saved-profile restore");
+            self.set_current_bands_proxy(&modem, bands)?;
+            self.invalidate_radio_snapshots(object_path, &device_uid);
+        }
+        Ok(())
+    }
+
+    pub fn sim_unlock(&self, object_path: &str, pin: &str) -> Result<(), String> {
+        if pin.len() < 4 || pin.len() > 8 || !pin.chars().all(|c| c.is_ascii_digit()) {
+            return Err("SIM PIN must contain 4 to 8 digits.".into());
+        }
+        let sim_path = self.sim_path_for_modem(object_path)?;
+        let proxy = gio::DBusProxy::for_bus_sync(
+            gio::BusType::System,
+            gio::DBusProxyFlags::NONE,
+            None::<&gio::DBusInterfaceInfo>,
+            MM_BUS,
+            &sim_path,
+            SIM_IFACE,
+            None::<&gio::Cancellable>,
+        ).map_err(|e| format!("Could not access the SIM interface: {e}"))?;
+        proxy.call_sync(
+            "SendPin",
+            Some(&(pin,).to_variant()),
+            gio::DBusCallFlags::NONE,
+            15_000,
+            None::<&gio::Cancellable>,
+        ).map(|_| ()).map_err(|e| format!("SIM unlock failed: {e}"))
+    }
+
+    pub fn set_sim_pin_enabled(&self, object_path: &str, pin: &str, enabled: bool) -> Result<(), String> {
+        if pin.len() < 4 || pin.len() > 8 || !pin.chars().all(|c| c.is_ascii_digit()) {
+            return Err("SIM PIN must contain 4 to 8 digits.".into());
+        }
+        let sim_path = self.sim_path_for_modem(object_path)?;
+        let proxy = gio::DBusProxy::for_bus_sync(
+            gio::BusType::System,
+            gio::DBusProxyFlags::NONE,
+            None::<&gio::DBusInterfaceInfo>,
+            MM_BUS,
+            &sim_path,
+            SIM_IFACE,
+            None::<&gio::Cancellable>,
+        ).map_err(|e| format!("Could not access the SIM interface: {e}"))?;
+        proxy.call_sync(
+            "EnablePin",
+            Some(&(pin, enabled).to_variant()),
+            gio::DBusCallFlags::NONE,
+            15_000,
+            None::<&gio::Cancellable>,
+        ).map(|_| ()).map_err(|e| format!("Could not change SIM PIN protection: {e}"))
+    }
+
+    fn sim_path_for_modem(&self, object_path: &str) -> Result<String, String> {
+        let object = self.manager.object(object_path).ok_or_else(|| "The modem disappeared from ModemManager.".to_string())?;
+        let iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)
+            .ok_or_else(|| "The generic Modem interface is unavailable.".to_string())?;
+        let modem = iface.dynamic_cast::<gio::DBusProxy>().map_err(|_| "Could not create modem proxy.".to_string())?;
+        let Some(value) = modem.cached_property("Sim") else { return Err("ModemManager did not expose a SIM object.".into()); };
+        let path = value.str().unwrap_or("").to_string();
+        if path.is_empty() || path == "/" { Err("No active SIM is available.".into()) } else { Ok(path) }
+    }
+
+    pub fn refresh_cell_info(&self, object_path: &str) -> Result<(), String> {
+        let result = self.refresh_cell_info_inner(object_path);
+        if let Err(error) = &result {
+            self.cell_cache.borrow_mut().insert(
+                object_path.to_string(),
+                CellCacheEntry {
+                    cells: Vec::new(),
+                    error: error.clone(),
+                    source: String::new(),
+                },
+            );
+        }
+        result
+    }
+
+    fn refresh_cell_info_inner(&self, object_path: &str) -> Result<(), String> {
+        let object = self
+            .manager
+            .object(object_path)
+            .ok_or_else(|| "The modem disappeared from ModemManager.".to_string())?;
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)
+            .ok_or_else(|| "The generic Modem interface is unavailable.".to_string())?;
+        let modem = modem_iface
+            .dynamic_cast::<gio::DBusProxy>()
+            .map_err(|_| "Could not create the Modem D-Bus proxy.".to_string())?;
+
+        let (cells, source) = match modem.call_sync(
+            "GetCellInfo",
+            None,
+            gio::DBusCallFlags::NONE,
+            10_000,
+            None::<&gio::Cancellable>,
+        ) {
+            Ok(response) => (
+                helper::parse_cell_info_response(&response)?,
+                "ModemManager D-Bus".to_string(),
+            ),
+            Err(error) => {
+                let text = error.to_string();
+                if is_bus_policy_denied(&text) {
+                    (
+                        helper::privileged_cell_info(object_path).map_err(|helper_error| {
+                            format!(
+                                "The normal D-Bus call is restricted by the system policy, and the privileged fallback also failed: {helper_error}"
+                            )
+                        })?,
+                        "ModemManager GetCellInfo • administrator policy bridge".to_string(),
+                    )
+                } else {
+                    return Err(format!("Cell scan is not available: {text}"));
+                }
+            }
+        };
+
+        self.cell_cache.borrow_mut().insert(
+            object_path.to_string(),
+            CellCacheEntry {
+                cells,
+                error: String::new(),
+                source,
+            },
+        );
+        Ok(())
+    }
+
+    pub fn refresh_vendor_info(&self, object_path: &str) -> Result<(), String> {
+        let cache_key = self
+            .modem_device_uid(object_path)
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| object_path.to_string());
+        let result = self.refresh_vendor_info_inner(object_path);
+        if let Err(error) = &result {
+            let (manufacturer, model) = self.modem_identity(object_path).unwrap_or_default();
+            let driver = DriverKind::identify(&manufacturer, &model);
+            self.vendor_cache.borrow_mut().insert(
+                cache_key,
+                VendorInfo {
+                    driver_name: driver.label().into(),
+                    deep_read_available: driver.has_vendor_deep_read(),
+                    error: friendly_at_error(error),
+                    ..VendorInfo::default()
+                },
+            );
+        }
+        result
+    }
+
+    fn refresh_vendor_info_inner(&self, object_path: &str) -> Result<(), String> {
+        let (manufacturer, model) = self
+            .modem_identity(object_path)
+            .ok_or_else(|| "The modem disappeared from ModemManager.".to_string())?;
+        let driver = DriverKind::identify(&manufacturer, &model);
+        if !driver.has_vendor_deep_read() 

@@ -1,0 +1,128 @@
+   });
+        }
+        {
+            let path = modem.object_path.clone(); let command=command.clone(); let reply=reply.clone(); let status=status.clone();
+            respond.connect_clicked(move |_| match communications::respond_ussd(&path, command.text().as_str()) {
+                Ok(text) => { reply.set_text(if text.is_empty() { "USSD response accepted." } else { &text }); status.set_text("USSD response completed."); }
+                Err(error) => { status.add_css_class("error-label"); status.set_text(&error); }
+            });
+        }
+        {
+            let path = modem.object_path.clone(); let status=status.clone();
+            cancel.connect_clicked(move |_| match communications::cancel_ussd(&path) {
+                Ok(()) => status.set_text("USSD session cancelled."),
+                Err(error) => { status.add_css_class("error-label"); status.set_text(&error); }
+            });
+        }
+    } else {
+        let unavailable = gtk::Label::new(Some("This modem/firmware does not expose the standard ModemManager USSD interface."));
+        unavailable.set_xalign(0.0); unavailable.set_wrap(true); unavailable.add_css_class("dim-label"); ussd_panel.append(&unavailable);
+    }
+    root.append(&ussd_panel);
+    root.upcast()
+}
+
+fn populate_calls(list: &gtk::Box, modem_path: &str, status: &gtk::Label) {
+    clear_box(list);
+    match communications::list_calls(modem_path) {
+        Ok(calls) if calls.is_empty() => {
+            let label = gtk::Label::new(Some("No active or retained calls."));
+            label.set_xalign(0.0); label.add_css_class("dim-label"); list.append(&label);
+        }
+        Ok(calls) => for call in calls {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            row.add_css_class("call-row");
+            let info = gtk::Label::new(Some(&format!("{} • {} • {}{}", value_or_dash(&call.number), call.direction_label(), call.state_label(), if call.audio_port.is_empty() { String::new() } else { format!(" • audio {}", call.audio_port) })));
+            info.set_xalign(0.0); info.set_hexpand(true); info.set_wrap(true); row.append(&info);
+            if call.can_answer() {
+                let answer = gtk::Button::with_label("Answer");
+                let path=call.path.clone(); let status=status.clone();
+                answer.connect_clicked(move |_| match communications::call_action(&path,"Accept") {
+                    Ok(()) => status.set_text("Call answered."), Err(error) => { status.add_css_class("error-label"); status.set_text(&error); }
+                });
+                row.append(&answer);
+            }
+            if call.can_hangup() {
+                let hangup = gtk::Button::with_label("Hang up");
+                let path=call.path.clone(); let status=status.clone();
+                hangup.connect_clicked(move |_| match communications::call_action(&path,"Hangup") {
+                    Ok(()) => status.set_text("Call ended."), Err(error) => { status.add_css_class("error-label"); status.set_text(&error); }
+                });
+                row.append(&hangup);
+            }
+            list.append(&row);
+        },
+        Err(error) => { let label=gtk::Label::new(Some(&error)); label.set_xalign(0.0); label.set_wrap(true); label.add_css_class("error-label"); list.append(&label); }
+    }
+}
+
+fn clear_box(container: &gtk::Box) {
+    while let Some(child) = container.first_child() { container.remove(&child); }
+}
+
+fn traffic_panel(modem: &ModemInfo) -> gtk::Widget {
+    let panel = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    panel.add_css_class("traffic-panel");
+    let title = gtk::Label::new(Some(i18n::tr("data_usage")));
+    title.set_xalign(0.0);
+    title.add_css_class("section-title");
+    panel.append(&title);
+
+    let Some(interface) = traffic::infer_interface(&modem.net_ports) else {
+        let hint = gtk::Label::new(Some("No WWAN network interface is currently exposed for traffic accounting."));
+        hint.set_xalign(0.0); hint.set_wrap(true); hint.add_css_class("dim-label"); panel.append(&hint);
+        return panel.upcast();
+    };
+
+    let grid = gtk::Grid::builder().column_spacing(12).row_spacing(10).column_homogeneous(true).build();
+    let rx = metric_value_widget(&grid, 0, 0, i18n::tr("download"), "—");
+    let tx = metric_value_widget(&grid, 1, 0, i18n::tr("upload"), "—");
+    let today = metric_value_widget(&grid, 2, 0, i18n::tr("today"), "—");
+    let month = metric_value_widget(&grid, 3, 0, i18n::tr("this_month"), "—");
+    panel.append(&grid);
+
+    let interface_note = gtk::Label::new(Some(&format!("Interface: {interface} • counters come from /sys/class/net; no speed test traffic is generated.")));
+    interface_note.set_xalign(0.0); interface_note.set_wrap(true); interface_note.add_css_class("dim-label");
+    panel.append(&interface_note);
+
+    let reset = gtk::Button::with_label(i18n::tr("reset_usage"));
+    reset.set_halign(gtk::Align::Start);
+    panel.append(&reset);
+    reset.connect_clicked(move |_| { let _ = traffic::reset_usage(); });
+
+    if let Some(sample) = traffic::sample(&interface) {
+        rx.set_text(&traffic::human_bps(sample.rx_bps));
+        tx.set_text(&traffic::human_bps(sample.tx_bps));
+        today.set_text(&format!("↓ {}  ↑ {}", traffic::human_bytes(sample.today_rx), traffic::human_bytes(sample.today_tx)));
+        month.set_text(&format!("↓ {}  ↑ {}", traffic::human_bytes(sample.month_rx), traffic::human_bytes(sample.month_tx)));
+    }
+
+    let weak_panel = panel.downgrade();
+    let weak_rx = rx.downgrade();
+    let weak_tx = tx.downgrade();
+    let weak_today = today.downgrade();
+    let weak_month = month.downgrade();
+    let iface = interface.clone();
+    let interval = Settings::load().normalized_traffic_refresh_seconds();
+    glib::timeout_add_seconds_local(interval, move || {
+        if weak_panel.upgrade().is_none() { return glib::ControlFlow::Break; }
+        let (Some(rx), Some(tx), Some(today), Some(month)) = (weak_rx.upgrade(), weak_tx.upgrade(), weak_today.upgrade(), weak_month.upgrade()) else {
+            return glib::ControlFlow::Break;
+        };
+        if let Some(sample) = traffic::sample(&iface) {
+            rx.set_text(&traffic::human_bps(sample.rx_bps));
+            tx.set_text(&traffic::human_bps(sample.tx_bps));
+            today.set_text(&format!("↓ {}  ↑ {}", traffic::human_bytes(sample.today_rx), traffic::human_bytes(sample.today_tx)));
+            month.set_text(&format!("↓ {}  ↑ {}", traffic::human_bytes(sample.month_rx), traffic::human_bytes(sample.month_tx)));
+        }
+        glib::ControlFlow::Continue
+    });
+
+    panel.upcast()
+}
+
+fn metric_value_widget(grid: &gtk::Grid, column: i32, row: i32, title: &str, value: &str) -> gtk::Label {
+    let box_ = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    box_.add_css_class("metric-box");
+    let title_label = gtk::Label::new(Some(title)); title_label.add_css_class("metric-title"); title_label.set_xalign(0.0);
+    let value_label = gtk::Label::new(Some(value)); value_l

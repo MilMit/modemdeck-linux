@@ -1,0 +1,76 @@
+y-panel");
+    let title = gtk::Label::new(Some("Serving radio"));
+    title.set_xalign(0.0);
+    title.add_css_class("section-title");
+    panel.append(&title);
+    let grid = gtk::Grid::builder().column_spacing(10).row_spacing(10).column_homogeneous(true).build();
+    add_metric(&grid,0,0,"Band",&cell.band_label());
+    add_metric(&grid,1,0,"Channel",&cell.channel_label());
+    add_metric(&grid,2,0,"PCI",&cell.pci_label());
+    add_metric(&grid,3,0,"Carrier aggregation",if modem.carrier_aggregation_active(){"Active • 4G+"}else{"Not observed"});
+    panel.append(&grid);
+    Some(panel.upcast::<gtk::Widget>())
+}
+
+fn driver_capabilities_panel(modem:&ModemInfo)->gtk::Widget{
+    let driver=DriverKind::identify(&modem.manufacturer,&modem.model);let caps=driver.capabilities(&modem.model);
+    let panel=gtk::Box::new(gtk::Orientation::Vertical,10);panel.add_css_class("driver-panel");
+    let title=gtk::Label::new(Some(&format!("Driver profile • {}",driver.label())));title.set_xalign(0.0);title.add_css_class("section-title");panel.append(&title);
+    let note=gtk::Label::new(Some("Capabilities are enabled per modem family. Unsupported or unverified controls stay disabled instead of sending guessed AT commands."));
+    note.set_xalign(0.0);note.set_wrap(true);note.add_css_class("dim-label");panel.append(&note);
+    let grid=gtk::Grid::builder().column_spacing(8).row_spacing(8).column_homogeneous(true).build();
+    capability_chip(&grid,0,0,"Vendor telemetry",caps.vendor_read);
+    capability_chip(&grid,1,0,"Serving cell",caps.serving_cell);
+    capability_chip(&grid,2,0,"Carrier aggregation",caps.carrier_aggregation);
+    capability_chip(&grid,0,1,"Neighbour cells",caps.neighbour_cells);
+    capability_chip(&grid,1,1,"Cell-lock preview",caps.lte_cell_lock_preview);
+    capability_chip(&grid,2,1,"5G diagnostics",caps.nr5g_diagnostics);
+    panel.append(&grid);panel.upcast::<gtk::Widget>()
+}
+fn capability_chip(grid:&gtk::Grid,column:i32,row:i32,label:&str,enabled:bool){
+    let chip=gtk::Label::new(Some(&format!("{}  {}",if enabled{"✓"}else{"—"},label)));
+    chip.set_xalign(0.0);chip.add_css_class(if enabled{"success-chip"}else{"capability-off"});grid.attach(&chip,column,row,1,1);
+}
+
+fn cell_lock_preview_panel(modem:&ModemInfo,client:&Rc<ModemManagerClient>)->gtk::Widget{
+    let driver=DriverKind::identify(&modem.manufacturer,&modem.model);let caps=driver.capabilities(&modem.model);
+    let panel=gtk::Box::new(gtk::Orientation::Vertical,10);panel.add_css_class("cell-lock-panel");
+    let title=gtk::Label::new(Some("LTE cell lock lab"));title.set_xalign(0.0);title.add_css_class("section-title");panel.append(&title);
+    let description=gtk::Label::new(Some("Enter EARFCN and PCI to generate the exact vendor-specific lock recipe. Phase 5 keeps this preview-only: it does not write cell-lock commands to the modem."));
+    description.set_xalign(0.0);description.set_wrap(true);description.add_css_class("dim-label");panel.append(&description);
+    let row=gtk::Box::new(gtk::Orientation::Horizontal,8);
+    let earfcn=gtk::Entry::builder().placeholder_text("EARFCN").input_purpose(gtk::InputPurpose::Digits).hexpand(true).build();
+    let pci=gtk::Entry::builder().placeholder_text("PCI (0–503)").input_purpose(gtk::InputPurpose::Digits).hexpand(true).build();
+    let preview=gtk::Button::with_label("Generate preview");preview.set_sensitive(caps.lte_cell_lock_preview);
+    row.append(&earfcn);row.append(&pci);row.append(&preview);panel.append(&row);
+    let output=gtk::Label::new(None);output.set_xalign(0.0);output.set_wrap(true);output.set_selectable(true);output.add_css_class("mono-detail");output.set_visible(false);panel.append(&output);
+    if !caps.lte_cell_lock_preview{
+        let unavailable=gtk::Label::new(Some("No verified cell-lock recipe is enabled for this driver. This is intentional; ModemDeck will not guess vendor write commands."));
+        unavailable.set_xalign(0.0);unavailable.set_wrap(true);unavailable.add_css_class("warning-label");panel.append(&unavailable);
+    }
+    {
+        let path=modem.object_path.clone();let client=client.clone();let earfcn=earfcn.clone();let pci=pci.clone();let output=output.clone();let device_uid=modem.device_uid.clone();let current_bands=modem.current_bands.clone();
+        preview.connect_clicked(move |_|{
+            let _=safety::backup_cell_intent(&device_uid,&path,&current_bands,"Before LTE cell-lock recipe preview (preview-only in RC1)");
+            let parsed_earfcn=earfcn.text().trim().parse::<u32>();let parsed_pci=pci.text().trim().parse::<u32>();
+            let result=match(parsed_earfcn,parsed_pci){(Ok(earfcn),Ok(pci))=>client.cell_lock_preview(&path,earfcn,pci),_=>Err("Enter numeric EARFCN and PCI values first.".into())};
+            output.set_text(&match result{Ok(text)=>text,Err(error)=>format!("Cannot generate preview: {error}")});output.set_visible(true);
+        });
+    }
+    panel.upcast::<gtk::Widget>()
+}
+
+fn band_manager_panel(
+    modem:&ModemInfo,
+    client:&Rc<ModemManagerClient>,
+    stack:&gtk::Stack,
+    switcher:&gtk::StackSwitcher,
+    status:&gtk::Label,
+)->gtk::Widget{
+    let panel=gtk::Box::new(gtk::Orientation::Vertical,12);panel.add_css_class("band-panel");
+    let title=gtk::Label::new(Some("Band manager"));title.set_xalign(0.0);title.add_css_class("section-title");panel.append(&title);
+    let description=gtk::Label::new(Some("Uses ModemManager's standard SetCurrentBands API. ModemDeck keeps the previous selection and automatically restores it after 45 seconds unless you confirm the change."));
+    description.set_xalign(0.0);description.set_wrap(true);description.add_css_class("dim-label");panel.append(&description);
+    let current=gtk::Label::new(Some(&format!("Current allowed bands: {}",bands_summary(&modem.current_bands))));
+    current.set_xalign(0.0);current.set_wrap(true);current.add_css_class("band-current");panel.append(&current);
+    let preset_name=match current_band_preset(modem){BandPresetState::Auto=>"Auto",BandPresetState::Fdd=>"LTE FDD only",BandPresetState::Tdd=>"TD-LTE only",BandPrese

@@ -1,0 +1,89 @@
+RSRQ or SNR from the modem. The raw ModemManager percentage above is still shown for reference.",
+        ));
+        hint.set_xalign(0.0);
+        hint.set_wrap(true);
+        hint.add_css_class("dim-label");
+        panel.append(&hint);
+        return panel.upcast::<gtk::Widget>();
+    }
+
+    let overall = overall_radio_quality(radio);
+    let strength = radio.rsrp.map(rsrp_grade).unwrap_or("Unknown");
+    let quality = radio.rsrq.map(rsrq_grade).unwrap_or("Unknown");
+    let interference = radio.snr.map(interference_grade).unwrap_or("Unknown");
+
+    let grid = gtk::Grid::builder().column_spacing(10).row_spacing(10).column_homogeneous(true).build();
+    add_metric_named(&grid,0,0,"Overall",overall,&live_widget_name("quality-overall",&modem.object_path));
+    add_metric_named(&grid,1,0,"Strength (RSRP)",strength,&live_widget_name("quality-strength",&modem.object_path));
+    add_metric_named(&grid,2,0,"Quality (RSRQ)",quality,&live_widget_name("quality-rsrq",&modem.object_path));
+    add_metric_named(&grid,3,0,"Interference",interference,&live_widget_name("quality-interference",&modem.object_path));
+    panel.append(&grid);
+
+    let note=gtk::Label::new(Some("This is a radio-link assessment derived from RSRP, RSRQ and SNR; it is not a speed test and does not estimate internet throughput."));
+    note.set_xalign(0.0);note.set_wrap(true);note.add_css_class("dim-label");panel.append(&note);
+    panel.upcast::<gtk::Widget>()
+}
+
+fn overall_radio_quality(signal:&RadioSignal)->&'static str{
+    let mut values=Vec::new();if let Some(v)=signal.rsrp{values.push(rsrp_score(v));}if let Some(v)=signal.rsrq{values.push(rsrq_score(v));}if let Some(v)=signal.snr{values.push(snr_score(v));}
+    if values.is_empty(){return "Unknown";}let average=values.iter().sum::<f64>()/values.len() as f64;
+    if average>=3.5{"Excellent"}else if average>=2.75{"Good"}else if average>=1.75{"Fair"}else{"Poor"}
+}
+fn rsrp_score(value:f64)->f64{if value>=-80.0{4.0}else if value>=-90.0{3.0}else if value>=-100.0{2.0}else if value>=-110.0{1.0}else{0.0}}
+fn rsrq_score(value:f64)->f64{if value>=-10.0{4.0}else if value>=-15.0{3.0}else if value>=-20.0{2.0}else{1.0}}
+fn snr_score(value:f64)->f64{if value>=20.0{4.0}else if value>=13.0{3.0}else if value>=0.0{2.0}else{1.0}}
+fn rsrp_grade(value:f64)->&'static str{if value>=-80.0{"Excellent"}else if value>=-90.0{"Good"}else if value>=-100.0{"Fair"}else if value>=-110.0{"Poor"}else{"Very poor"}}
+fn rsrq_grade(value:f64)->&'static str{if value>=-10.0{"Excellent"}else if value>=-15.0{"Good"}else if value>=-20.0{"Fair"}else{"Poor"}}
+fn interference_grade(value:f64)->&'static str{if value>=20.0{"Very low"}else if value>=13.0{"Low"}else if value>=0.0{"Moderate"}else{"High"}}
+
+fn serving_radio_snapshot_panel(modem: &ModemInfo) -> Option<gtk::Widget> {
+    let vendor_has_data = modem.vendor.serving_band.is_some()
+        || modem.vendor.earfcn.is_some()
+        || modem.vendor.pci.is_some()
+        || !modem.vendor.bandwidth.trim().is_empty()
+        || modem.vendor.ca_active.is_some();
+
+    if vendor_has_data {
+        let panel = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        panel.add_css_class("serving-summary-panel");
+        let title = gtk::Label::new(Some("Serving radio snapshot"));
+        title.set_xalign(0.0);
+        title.add_css_class("section-title");
+        panel.append(&title);
+
+        let band = modem.vendor.serving_band.map(|band| {
+            let duplex=if is_lte_tdd_band(band){"TDD"}else{"FDD"};format!("LTE B{band} • {duplex}")
+        }).unwrap_or_else(||"—".into());
+        let channel=modem.vendor.earfcn.map(|v|v.to_string()).unwrap_or_else(||"—".into());
+        let pci=modem.vendor.pci.map(|v|v.to_string()).unwrap_or_else(||"—".into());
+        let bandwidth=if modem.vendor.bandwidth.trim().is_empty(){"—"}else{&modem.vendor.bandwidth};
+        let ca=match modem.vendor.ca_active{Some(true)=>"Active • 4G+",Some(false)=>"Not active",None=>"Unknown"};
+
+        let grid=gtk::Grid::builder().column_spacing(10).row_spacing(10).column_homogeneous(true).build();
+        add_metric(&grid,0,0,"Band",&band);add_metric(&grid,1,0,"EARFCN",&channel);add_metric(&grid,2,0,"PCI",&pci);add_metric(&grid,3,0,"Bandwidth",bandwidth);add_metric(&grid,0,1,"Carrier aggregation",ca);
+        if modem.carrier_aggregation_active(){
+            let carriers=modem.carrier_aggregation_count();let topology=modem.ca_layout_label();
+            let component_bw=modem.ca_component_bandwidth_mhz().map(|value|format!("{value:.0} MHz total")).unwrap_or_else(||"—".into());
+            add_metric(&grid,1,1,"CA topology",&format!("{carriers}CA • {topology}"));add_metric(&grid,2,1,"Component bandwidth",&component_bw);
+        }
+        panel.append(&grid);
+
+        if !modem.vendor.ca_components.is_empty() {
+            let ca_box=gtk::Box::new(gtk::Orientation::Horizontal,8);ca_box.add_css_class("ca-components");
+            for component in &modem.vendor.ca_components {
+                let role=if component.role.eq_ignore_ascii_case("PCC"){"PCC"}else{component.role.as_str()};
+                let band=component.band.map(|b|format!("B{b}")).unwrap_or_else(||"—".into());
+                let bw=component.bandwidth_mhz.map(|v|format!("{v:.0} MHz")).unwrap_or_else(||"—".into());
+                let chip=gtk::Label::new(Some(&format!("{role}  {band}  {bw}")));chip.add_css_class("ca-chip");ca_box.append(&chip);
+            }
+            panel.append(&ca_box);
+        }
+
+        let note=gtk::Label::new(Some("Snapshot from the last vendor read. ModemDeck does not repeatedly inhibit the modem just to refresh these fields; use Refresh radio details after a carrier or band change."));
+        note.set_xalign(0.0);note.set_wrap(true);note.add_css_class("dim-label");panel.append(&note);
+        return Some(panel.upcast::<gtk::Widget>());
+    }
+
+    let cell = modem.serving_cells.iter().find(|cell| cell.cell_type == 5)?;
+    let panel = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    panel.add_css_class("serving-summar

@@ -1,0 +1,27 @@
+der_text(Some(&translated)); }
+        }
+    }
+    if let Some(entry) = widget.downcast_ref::<gtk::PasswordEntry>() {
+        if let Some(current) = entry.placeholder_text() {
+            let translated = i18n::translate_ui_text(current.as_str());
+            if translated != current { entry.set_placeholder_text(Some(&translated)); }
+        }
+    }
+    let mut child = widget.first_child();
+    while let Some(item) = child {
+        child = item.next_sibling();
+        localize_widget_tree(&item);
+    }
+}
+
+fn load_css() {
+    let provider = gtk::CssProvider::new();
+    provider.load_from_data(include_str!("../assets/style.css"));
+    if let Some(display) = gtk::gdk::Display::default() {
+        gtk::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
+}

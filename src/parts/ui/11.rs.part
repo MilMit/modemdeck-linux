@@ -1,0 +1,94 @@
+nt_bands) { let _=profiles::set_active(&name); }
+                    else { let _=profiles::set_active(""); }
+                }
+                render_modems(&stack, &switcher, &status, &client.modems(), &client);
+            });
+        }
+        {
+            let path = modem.object_path.clone();
+            let client = client.clone();
+            let stack = stack.clone();
+            let switcher = switcher.clone();
+            let status = status.clone();
+            undo.connect_clicked(move |_| {
+                if let Err(error) = client.rollback_band_selection(&path) {
+                    status.set_text(&error);
+                    status.add_css_class("error-label");
+                } else if let Some(modem)=client.modems().into_iter().find(|m| m.object_path==path) {
+                    if let Some(name)=profiles::matching_name(&modem.current_bands) { let _=profiles::set_active(&name); }
+                    else { let _=profiles::set_active(""); }
+                }
+                render_modems(&stack, &switcher, &status, &client.modems(), &client);
+            });
+        }
+    }
+    panel.upcast::<gtk::Widget>()
+}
+
+fn apply_bands_and_schedule(
+    object_path: &str,bands: Vec<u32>,client: &Rc<ModemManagerClient>,
+    stack: &gtk::Stack,switcher: &gtk::StackSwitcher,status: &gtk::Label,
+) {
+    match client.apply_band_selection(object_path, &bands) {
+        Ok(()) => {
+            render_modems(stack,switcher,status,&client.modems(),client);
+            if let Some(generation)=client.band_change_generation(object_path){
+                let path=object_path.to_string();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();
+                glib::timeout_add_seconds_local(45,move||{
+                    if client.band_change_generation(&path)==Some(generation){
+                        if let Err(error)=client.rollback_band_selection(&path){status.set_text(&format!("Automatic band rollback failed: {error}"));status.add_css_class("error-label");}
+                        else if let Some(modem)=client.modems().into_iter().find(|m|m.object_path==path){
+                            if let Some(name)=profiles::matching_name(&modem.current_bands){let _=profiles::set_active(&name);}else{let _=profiles::set_active("");}
+                        }
+                        render_modems(&stack,&switcher,&status,&client.modems(),&client);
+                    }
+                    glib::ControlFlow::Break
+                });
+            }
+        }
+        Err(error)=>{status.set_text(&error);status.add_css_class("error-label");}
+    }
+}
+
+fn serving_cell_panel(
+    modem:&ModemInfo,client:&Rc<ModemManagerClient>,stack:&gtk::Stack,switcher:&gtk::StackSwitcher,status:&gtk::Label,
+)->gtk::Widget{
+    let panel=gtk::Box::new(gtk::Orientation::Vertical,10);panel.add_css_class("cell-panel");
+    let header=gtk::Box::new(gtk::Orientation::Horizontal,10);
+    let title=gtk::Label::new(Some("Serving cell"));title.set_xalign(0.0);title.set_hexpand(true);title.add_css_class("section-title");header.append(&title);
+    let scan=gtk::Button::with_label("Scan serving cell");scan.set_tooltip_text(Some("May request administrator authorization on distributions whose system D-Bus policy restricts GetCellInfo."));scan.add_css_class("suggested-action");header.append(&scan);panel.append(&header);
+    {
+        let path=modem.object_path.clone();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();
+        scan.connect_clicked(move|button|{button.set_sensitive(false);let _=client.refresh_cell_info(&path);render_modems(&stack,&switcher,&status,&client.modems(),&client);});
+    }
+    if !modem.cell_info_error.is_empty(){
+        let error=gtk::Label::new(Some(&modem.cell_info_error));error.set_xalign(0.0);error.set_wrap(true);error.add_css_class("warning-label");panel.append(&error);
+    }else if modem.serving_cells.is_empty(){
+        let hint=gtk::Label::new(Some("Press Scan serving cell to ask ModemManager for the live serving carrier, EARFCN and PCI. This path is vendor-neutral when supported by the modem driver."));
+        hint.set_xalign(0.0);hint.set_wrap(true);hint.add_css_class("dim-label");panel.append(&hint);
+    }else{
+        if !modem.cell_info_source.is_empty(){let source=gtk::Label::new(Some(&format!("Read source: {}",modem.cell_info_source)));source.set_xalign(0.0);source.add_css_class("success-chip");panel.append(&source);}
+        if modem.carrier_aggregation_active(){let ca=gtk::Label::new(Some("Carrier aggregation detected • 4G+"));ca.set_xalign(0.0);ca.add_css_class("success-chip");panel.append(&ca);}
+        for cell in &modem.serving_cells{panel.append(&serving_cell_card(cell));}
+    }
+    panel.upcast::<gtk::Widget>()
+}
+
+fn serving_cell_card(cell:&ServingCellInfo)->gtk::Widget{
+    let box_=gtk::Box::new(gtk::Orientation::Vertical,8);box_.add_css_class("cell-card");
+    let title=gtk::Label::new(Some(&format!("{} • {}",cell.technology_label(),cell.role_label())));title.set_xalign(0.0);title.add_css_class("cell-title");box_.append(&title);
+    let grid=gtk::Grid::builder().column_spacing(12).row_spacing(10).column_homogeneous(true).build();
+    add_metric(&grid,0,0,"Band",&cell.band_label());add_metric(&grid,1,0,"Channel",&cell.channel_label());add_metric(&grid,2,0,"PCI",&cell.pci_label());
+    add_metric(&grid,3,0,"RSRP",&cell.rsrp.map(|v|format!("{v:.1} dBm")).unwrap_or_else(||"—".into()));
+    add_metric(&grid,0,1,"RSRQ",&cell.rsrq.map(|v|format!("{v:.1} dB")).unwrap_or_else(||"—".into()));
+    add_metric(&grid,1,1,"SINR",&cell.sinr.map(|v|format!("{v:.1} dB")).unwrap_or_else(||"—".into()));
+    add_metric(&grid,2,1,"Cell ID",value_or_dash(&cell.ci));add_metric(&grid,3,1,"TAC",value_or_dash(&cell.tac));box_.append(&grid);
+    box_.upcast::<gtk::Widget>()
+}
+
+fn vendor_panel(
+    modem: &ModemInfo,
+    client: &Rc<ModemManagerClient>,
+    stack: &gtk::Stack,
+    switcher: &gtk::StackSwitcher,
+    st

@@ -1,0 +1,154 @@
+UnlockRequired").unwrap_or(0);
+        let primary_sim_slot = u32_prop(&modem, "PrimarySimSlot").unwrap_or(0);
+        let state = i32_prop(&modem, "State").unwrap_or_default();
+        let current_capabilities = u32_prop(&modem, "CurrentCapabilities").unwrap_or_default();
+        let access_technologies = u32_prop(&modem, "AccessTechnologies").unwrap_or_default();
+        let (signal_percent, signal_recent) = modem
+            .cached_property("SignalQuality")
+            .and_then(|v| v.get::<(u32, bool)>())
+            .unwrap_or((0, false));
+        let supported_bands = vec_u32_prop(&modem, "SupportedBands");
+        let current_bands = vec_u32_prop(&modem, "CurrentBands");
+
+        let (operator_name, operator_code) = gio::prelude::DBusObjectExt::interface(object, MODEM_3GPP_IFACE)
+            .and_then(|iface| iface.dynamic_cast::<gio::DBusProxy>().ok())
+            .map(|proxy| {
+                (
+                    string_prop(&proxy, "OperatorName"),
+                    string_prop(&proxy, "OperatorCode"),
+                )
+            })
+            .unwrap_or_default();
+
+        let (lte_signal, nr5g_signal) = gio::prelude::DBusObjectExt::interface(object, MODEM_SIGNAL_IFACE)
+            .and_then(|iface| iface.dynamic_cast::<gio::DBusProxy>().ok())
+            .map(|proxy| {
+                (
+                    radio_signal_prop(&proxy, "Lte"),
+                    radio_signal_prop(&proxy, "Nr5g"),
+                )
+            })
+            .unwrap_or_default();
+
+        let object_path = object.object_path().to_string();
+        let cell_entry = self
+            .cell_cache
+            .borrow()
+            .get(&object_path)
+            .cloned()
+            .unwrap_or_default();
+
+        let driver = DriverKind::identify(&manufacturer, &model);
+        let vendor_key = if device_uid.trim().is_empty() { &object_path } else { &device_uid };
+        let vendor = self
+            .vendor_cache
+            .borrow()
+            .get(vendor_key)
+            .cloned()
+            .unwrap_or_else(|| VendorInfo {
+                driver_name: driver.label().into(),
+                deep_read_available: driver.has_vendor_deep_read(),
+                ..VendorInfo::default()
+            });
+        let band_change = self
+            .band_change_cache
+            .borrow()
+            .get(&object_path)
+            .cloned()
+            .unwrap_or_default();
+
+        Some(ModemInfo {
+            object_path,
+            manufacturer,
+            model,
+            revision,
+            equipment_id,
+            device_uid,
+            plugin,
+            primary_port,
+            at_ports,
+            net_ports,
+            sim_path,
+            unlock_required,
+            primary_sim_slot,
+            operator_name,
+            operator_code,
+            state,
+            current_capabilities,
+            access_technologies,
+            signal_percent: signal_percent.min(100),
+            signal_recent,
+            supported_bands,
+            current_bands,
+            lte_signal,
+            nr5g_signal,
+            serving_cells: cell_entry.cells,
+            cell_info_error: cell_entry.error,
+            cell_info_source: cell_entry.source,
+            vendor,
+            band_change,
+        })
+    }
+}
+
+fn is_bus_policy_denied(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    lower.contains("accessdenied")
+        || lower.contains("access denied")
+        || lower.contains("rejected send message")
+        || lower.contains("not authorized")
+        || lower.contains("unauthorized")
+}
+
+fn friendly_at_error(error: &str) -> String {
+    error.to_string()
+}
+
+fn radio_signal_prop(proxy: &gio::DBusProxy, property: &str) -> RadioSignal {
+    let Some(value) = proxy.cached_property(property) else {
+        return RadioSignal::default();
+    };
+    let dict = glib::VariantDict::new(Some(&value));
+
+    RadioSignal {
+        rssi: dict.lookup::<f64>("rssi").ok().flatten(),
+        rsrp: dict.lookup::<f64>("rsrp").ok().flatten(),
+        rsrq: dict.lookup::<f64>("rsrq").ok().flatten(),
+        snr: dict.lookup::<f64>("snr").ok().flatten(),
+    }
+}
+
+fn string_prop(proxy: &gio::DBusProxy, name: &str) -> String {
+    proxy
+        .cached_property(name)
+        .and_then(|v| v.get::<String>())
+        .unwrap_or_default()
+}
+
+fn u32_prop(proxy: &gio::DBusProxy, name: &str) -> Option<u32> {
+    proxy.cached_property(name).and_then(|v| v.get::<u32>())
+}
+
+fn i32_prop(proxy: &gio::DBusProxy, name: &str) -> Option<i32> {
+    proxy.cached_property(name).and_then(|v| v.get::<i32>())
+}
+
+
+fn ports_by_kind(proxy: &gio::DBusProxy, wanted: u32) -> Vec<String> {
+    proxy
+        .cached_property("Ports")
+        .and_then(|value| value.get::<Vec<(String, u32)>>())
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|(name, kind)| (kind == wanted).then_some(name))
+        .collect()
+}
+
+fn at_ports_prop(proxy: &gio::DBusProxy) -> Vec<String> { ports_by_kind(proxy, 3) }
+
+fn vec_u32_prop(proxy: &gio::DBusProxy, name: &str) -> Vec<u32> {
+    proxy
+        .cached_property(name)
+        .and_then(|v| v.get::<Vec<u32>>())
+        .unwrap_or_default()
+}

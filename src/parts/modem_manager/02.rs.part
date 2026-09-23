@@ -1,0 +1,156 @@
+ {
+            return Err(format!(
+                "No verified vendor read profile is enabled yet for {manufacturer} {model}. Generic ModemManager features remain available."
+            ));
+        }
+
+        let cache_key = self
+            .modem_device_uid(object_path)
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| object_path.to_string());
+        let commands = driver.read_commands(&model);
+        if commands.is_empty() {
+            return Err(format!("{} has no read-only command profile for this model.", driver.label()));
+        }
+
+        let mut dbus_responses: Vec<(String, String)> = Vec::new();
+        let mut first_error: Option<String> = None;
+        for (index, command) in commands.iter().enumerate() {
+            match self.send_at_command(object_path, command, 5) {
+                Ok(response) => dbus_responses.push(((*command).to_string(), response)),
+                Err(error) => {
+                    if index == 0 {
+                        first_error = Some(error);
+                        break;
+                    }
+                    dbus_responses.push((
+                        (*command).to_string(),
+                        format!("Command unavailable: {error}"),
+                    ));
+                }
+            }
+        }
+
+        let mut info = if first_error.is_none() {
+            let mut info = driver.parse(&model, &dbus_responses);
+            info.read_source = "ModemManager AT D-Bus".into();
+            info
+        } else {
+            let dbus_error = first_error.unwrap_or_else(|| "unknown AT D-Bus error".into());
+            let (uid, ports) = self
+                .modem_direct_at_details(object_path)
+                .ok_or_else(|| {
+                    format!(
+                        "ModemManager AT read failed ({dbus_error}), and ModemDeck could not discover a safe device UID/AT port for the direct fallback."
+                    )
+                })?;
+            let direct = helper::privileged_vendor_read(driver, &uid, &model, &ports).map_err(|error| {
+                format!(
+                    "ModemManager's AT path is unavailable ({dbus_error}). The safe direct-AT fallback also failed: {error}"
+                )
+            })?;
+            let responses: Vec<(String, String)> = direct
+                .responses
+                .iter()
+                .map(|item| (item.command.clone(), item.response.clone()))
+                .collect();
+            let mut info = driver.parse(&model, &responses);
+            info.read_source = format!(
+                "Direct read via {} • ModemManager temporarily inhibited",
+                direct.port
+            );
+            if !direct.warning.is_empty() {
+                info.error = direct.warning;
+            }
+            info
+        };
+
+        info.driver_name = driver.label().into();
+        info.deep_read_available = true;
+        self.vendor_cache.borrow_mut().insert(cache_key, info);
+        Ok(())
+    }
+
+    pub fn cell_lock_preview(&self, object_path: &str, earfcn: u32, pci: u32) -> Result<String, String> {
+        let (manufacturer, model) = self
+            .modem_identity(object_path)
+            .ok_or_else(|| "The modem disappeared from ModemManager.".to_string())?;
+        let driver = DriverKind::identify(&manufacturer, &model);
+        driver.cell_lock_preview(earfcn, pci)
+    }
+
+    fn invalidate_radio_snapshots(&self, object_path: &str, device_uid: &str) {
+        self.cell_cache.borrow_mut().remove(object_path);
+        let mut vendor_cache = self.vendor_cache.borrow_mut();
+        vendor_cache.remove(object_path);
+        if !device_uid.trim().is_empty() {
+            vendor_cache.remove(device_uid);
+        }
+    }
+
+    pub fn apply_band_selection(&self, object_path: &str, requested_bands: &[u32]) -> Result<(), String> {
+        if requested_bands.is_empty() {
+            return Err("Select at least one band, or use the Auto preset.".into());
+        }
+
+        let object = self
+            .manager
+            .object(object_path)
+            .ok_or_else(|| "The modem disappeared from ModemManager.".to_string())?;
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)
+            .ok_or_else(|| "The generic Modem interface is unavailable.".to_string())?;
+        let modem = modem_iface
+            .dynamic_cast::<gio::DBusProxy>()
+            .map_err(|_| "Could not create the Modem D-Bus proxy.".to_string())?;
+        let device_uid = string_prop(&modem, "Device");
+
+        let supported = vec_u32_prop(&modem, "SupportedBands");
+        let auto = requested_bands.len() == 1 && requested_bands[0] == 256;
+        if !auto && !supported.is_empty() {
+            if let Some(unsupported) = requested_bands.iter().find(|band| !supported.contains(band)) {
+                return Err(format!("Band enum #{unsupported} is not reported as supported by this modem."));
+            }
+        }
+
+        let previous = vec_u32_prop(&modem, "CurrentBands");
+        if previous.is_empty() {
+            return Err("ModemManager did not report the current band selection. ModemDeck will not change bands because it cannot guarantee a rollback.".into());
+        }
+        if previous == requested_bands {
+            self.band_change_cache.borrow_mut().insert(
+                object_path.to_string(),
+                BandChangeState {
+                    previous_bands: previous.clone(),
+                    requested_bands: requested_bands.to_vec(),
+                    pending_confirmation: false,
+                    generation: 0,
+                    message: "Those bands are already configured.".into(),
+                },
+            );
+            return Ok(());
+        }
+
+        let generation = self
+            .band_change_cache
+            .borrow()
+            .get(object_path)
+            .map(|state| state.generation.saturating_add(1))
+            .unwrap_or(1);
+
+        let _ = safety::backup_band_state(&device_uid, object_path, &previous, "Before interactive band change");
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+        let guard_token = format!("{}-{}", std::process::id(), now.as_nanos());
+        let transaction = safety::BandTransaction {
+            device_uid: device_uid.clone(),
+            object_path: object_path.to_string(),
+            previous_bands: previous.clone(),
+            requested_bands: requested_bands.to_vec(),
+            created_unix: now.as_secs(),
+            guard_token: guard_token.clone(),
+        };
+        safety::write_pending(&transaction).map_err(|e| format!("Could not arm crash-safe rollback: {e}"))?;
+        if let Err(error) = safety::spawn_rollback_guard(47, &guard_token) {
+            safety::clear_pending();
+            return Err(format!("Could not start the crash-safe rollback guard; no band change was made: {error}"));
+        }
+        if let Err(error) = self.set_current_bands_proxy

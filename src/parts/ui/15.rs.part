@@ -1,0 +1,77 @@
+t.first_child();
+    while let Some(widget) = child {
+        if let Some(found) = find_named_widget::<T>(&widget, name) {
+            return Some(found);
+        }
+        child = widget.next_sibling();
+    }
+    None
+}
+
+fn format_signal_value(value: Option<f64>, unit: &str) -> String {
+    value.map(|number| format!("{number:.1} {unit}")).unwrap_or_else(|| "—".into())
+}
+
+fn update_live_modem_widgets(stack: &gtk::Stack, modems: &[ModemInfo]) {
+    let root = stack.clone().upcast::<gtk::Widget>();
+    for modem in modems {
+        if let Some(label) = find_named_widget::<gtk::Label>(&root,&live_widget_name("operator",&modem.object_path)) {
+            label.set_text(&format!("{} • {}",modem.operator_label(),modem.state_label()));
+        }
+        if let Some(label)=find_named_widget::<gtk::Label>(&root,&live_widget_name("network",&modem.object_path)){
+            label.set_text(&modem.network_label());
+            if modem.carrier_aggregation_active(){label.add_css_class("network-badge-plus");}else{label.remove_css_class("network-badge-plus");}
+        }
+        if let Some(label)=find_named_widget::<gtk::Label>(&root,&live_widget_name("signal-text",&modem.object_path)){label.set_text(&format!("Modem signal  {}%",modem.signal_percent));}
+        if let Some(bar)=find_named_widget::<gtk::ProgressBar>(&root,&live_widget_name("signal-bar",&modem.object_path)){
+            bar.set_fraction(modem.signal_percent.min(100)as f64/100.0);
+            bar.set_tooltip_text(Some(if modem.signal_recent{"Recent ModemManager signal reading"}else{"Cached ModemManager signal reading"}));
+        }
+        let(radio_name,radio)=modem.preferred_signal();
+        if let Some(label)=find_named_widget::<gtk::Label>(&root,&live_widget_name("radio-title",&modem.object_path)){label.set_text(&format!("{radio_name} radio metrics"));}
+        for(kind,value,unit)in[("rsrp",radio.rsrp,"dBm"),("rsrq",radio.rsrq,"dB"),("snr",radio.snr,"dB"),("rssi",radio.rssi,"dBm")]{
+            if let Some(label)=find_named_widget::<gtk::Label>(&root,&live_widget_name(kind,&modem.object_path)){label.set_text(&format_signal_value(value,unit));}
+        }
+        if radio.has_any(){
+            let quality_values=[
+                ("quality-overall",overall_radio_quality(radio)),
+                ("quality-strength",radio.rsrp.map(rsrp_grade).unwrap_or("Unknown")),
+                ("quality-rsrq",radio.rsrq.map(rsrq_grade).unwrap_or("Unknown")),
+                ("quality-interference",radio.snr.map(interference_grade).unwrap_or("Unknown")),
+            ];
+            for(kind,value)in quality_values{
+                if let Some(label)=find_named_widget::<gtk::Label>(&root,&live_widget_name(kind,&modem.object_path)){label.set_text(value);}
+            }
+        }
+    }
+}
+
+fn signal_metric_named(grid:&gtk::Grid,column:i32,row:i32,title:&str,value:Option<f64>,unit:&str,widget_name:&str){
+    let box_=gtk::Box::new(gtk::Orientation::Vertical,3);box_.add_css_class("metric-chip");
+    let title_label=gtk::Label::new(Some(title));title_label.add_css_class("metric-title");box_.append(&title_label);
+    let value_label=gtk::Label::new(Some(&format_signal_value(value,unit)));value_label.set_widget_name(widget_name);value_label.add_css_class("metric-value");box_.append(&value_label);
+    grid.attach(&box_,column,row,1,1);
+}
+
+fn add_metric_named(grid:&gtk::Grid,column:i32,row:i32,title:&str,value:&str,widget_name:&str){
+    let box_=gtk::Box::new(gtk::Orientation::Vertical,2);box_.set_hexpand(true);
+    let title=gtk::Label::new(Some(title));title.set_xalign(0.0);title.add_css_class("metric-title");
+    let value=gtk::Label::new(Some(value));value.set_widget_name(widget_name);value.set_xalign(0.0);value.set_wrap(true);value.set_wrap_mode(gtk::pango::WrapMode::WordChar);value.set_selectable(true);
+    box_.append(&title);box_.append(&value);grid.attach(&box_,column,row,1,1);
+}
+fn add_metric(grid:&gtk::Grid,column:i32,row:i32,title:&str,value:&str){
+    let box_=gtk::Box::new(gtk::Orientation::Vertical,2);box_.set_hexpand(true);
+    let title=gtk::Label::new(Some(title));title.set_xalign(0.0);title.add_css_class("metric-title");
+    let value=gtk::Label::new(Some(value));value.set_xalign(0.0);value.set_wrap(true);value.set_wrap_mode(gtk::pango::WrapMode::WordChar);value.set_selectable(true);
+    box_.append(&title);box_.append(&value);grid.attach(&box_,column,row,1,1);
+}
+fn bands_summary(bands:&[u32])->String{if bands.is_empty(){"—".into()}else{bands.iter().map(|band|band_label(*band)).collect::<Vec<_>>().join(", ")}}
+fn supported_bands_summary(bands:&[u32])->String{if bands.is_empty(){"Not reported".into()}else{format!("{} bands reported",bands.len())}}
+fn value_or_dash(value:&str)->&str{if value.trim().is_empty(){"—"}else{value}}
+
+fn localize_widget_tree(widget:&gtk::Widget){
+    if i18n::language()!=i18n::Language::Fa{return;}
+    if let Some(label)=widget.downcast_ref::<gtk::Label>(){let current=label.text().to_string();let translated=i18n::translate_ui_text(&current);if translated!=current{label.set_text(&translated);}}
+    if let Some(button)=widget.downcast_ref::<gtk::Button>(){if let Some(current)=button.label(){let translated=i18n::translate_ui_text(current.as_str());if translated!=current{button.set_label(&translated);}}}
+    if let Some(check)=widget.downcast_ref::<gtk::CheckButton>(){if let Some(current)=check.label(){let translated=i18n::translate_ui_text(current.as_str());if translated!=current{check.set_label(Some(&translated));}}}
+    if let Some(entry)=widget.downcast_ref::<gtk::Entry>(){if let Some(current)=entry.placeholder_text(){let translated=i18n::translate_ui_text(current.as_str());if translated!=current{entry.set_placehol

@@ -1,0 +1,110 @@
+abel.add_css_class("metric-value"); value_label.set_xalign(0.0);
+    box_.append(&title_label); box_.append(&value_label); grid.attach(&box_, column, row, 1, 1);
+    value_label
+}
+
+fn sim_security_panel(
+    modem: &ModemInfo,
+    client: &Rc<ModemManagerClient>,
+    stack: &gtk::Stack,
+    switcher: &gtk::StackSwitcher,
+    status: &gtk::Label,
+) -> gtk::Widget {
+    let panel = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    panel.add_css_class("sim-panel");
+    let title = gtk::Label::new(Some(i18n::tr("sim_security"))); title.set_xalign(0.0); title.add_css_class("section-title"); panel.append(&title);
+
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+    let lock = gtk::Label::new(Some(&format!("{} • slot {}", modem.sim_lock_label(), if modem.primary_sim_slot == 0 { 1 } else { modem.primary_sim_slot })));
+    lock.set_xalign(0.0); lock.set_hexpand(true); row.append(&lock);
+    let pin = gtk::PasswordEntry::new(); pin.set_placeholder_text(Some("SIM PIN")); pin.set_max_width_chars(10); row.append(&pin);
+    let unlock = gtk::Button::with_label(i18n::tr("unlock_sim")); row.append(&unlock);
+    panel.append(&row);
+
+    let controls = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let enable = gtk::Button::with_label("Enable PIN protection");
+    let disable = gtk::Button::with_label("Disable PIN protection");
+    controls.append(&enable); controls.append(&disable); panel.append(&controls);
+
+    for (button, desired) in [(unlock.clone(), None), (enable.clone(), Some(true)), (disable.clone(), Some(false))] {
+        let client = client.clone(); let path = modem.object_path.clone(); let pin = pin.clone();
+        let stack = stack.clone(); let switcher = switcher.clone(); let status = status.clone();
+        button.connect_clicked(move |_| {
+            let code = pin.text().to_string();
+            let result = match desired { Some(value) => client.set_sim_pin_enabled(&path, &code, value), None => client.sim_unlock(&path, &code) };
+            match result {
+                Ok(()) => { status.remove_css_class("error-label"); status.set_text("SIM security operation completed."); }
+                Err(error) => { status.add_css_class("error-label"); status.set_text(&error); }
+            }
+            pin.set_text("");
+            render_modems(&stack, &switcher, &status, &client.modems(), &client);
+        });
+    }
+    if modem.sim_path.is_empty() || modem.sim_path == "/" { unlock.set_sensitive(false); enable.set_sensitive(false); disable.set_sensitive(false); }
+    panel.upcast()
+}
+
+fn apn_manager_panel(
+    client: &Rc<ModemManagerClient>,
+    stack: &gtk::Stack,
+    switcher: &gtk::StackSwitcher,
+    status: &gtk::Label,
+) -> gtk::Widget {
+    let panel = gtk::Box::new(gtk::Orientation::Vertical, 10); panel.add_css_class("apn-panel");
+    let title = gtk::Label::new(Some(i18n::tr("apn_manager"))); title.set_xalign(0.0); title.add_css_class("section-title"); panel.append(&title);
+    let note = gtk::Label::new(Some("APN profiles are stored by NetworkManager. Password secrets stay under NetworkManager/your desktop secret agent; ModemDeck does not copy them into its own config."));
+    note.set_xalign(0.0); note.set_wrap(true); note.add_css_class("dim-label"); panel.append(&note);
+
+    let profiles_cache = Rc::new(RefCell::new(apn::list().unwrap_or_default()));
+    let combo = gtk::ComboBoxText::new(); combo.set_hexpand(true);
+    for p in profiles_cache.borrow().iter() { combo.append(Some(&p.uuid), &format!("{}{} • {}", if p.active { "● " } else { "" }, p.name, p.apn)); }
+    if !profiles_cache.borrow().is_empty() { combo.set_active(Some(0)); }
+    panel.append(&combo);
+
+    let form = gtk::Grid::builder().column_spacing(10).row_spacing(8).build();
+    let name = gtk::Entry::new(); name.set_placeholder_text(Some("Connection name"));
+    let apn_entry = gtk::Entry::new(); apn_entry.set_placeholder_text(Some("APN, e.g. mtnirancell"));
+    let user = gtk::Entry::new(); user.set_placeholder_text(Some("Username (optional)"));
+    let password = gtk::PasswordEntry::new(); password.set_placeholder_text(Some("Password (optional; leave blank to keep existing)"));
+    let autoconnect = gtk::CheckButton::with_label("Autoconnect"); autoconnect.set_active(true);
+    form.attach(&name,0,0,1,1); form.attach(&apn_entry,1,0,1,1); form.attach(&user,2,0,1,1); form.attach(&password,0,1,3,1); form.attach(&autoconnect,3,0,1,2);
+    panel.append(&form);
+
+    let fill_form = {
+        let combo=combo.clone(); let cache=profiles_cache.clone(); let name=name.clone(); let apn_entry=apn_entry.clone(); let user=user.clone(); let password=password.clone(); let autoconnect=autoconnect.clone();
+        move || {
+            if let Some(id)=combo.active_id() {
+                if let Some(p)=cache.borrow().iter().find(|p| p.uuid == id.as_str()) {
+                    name.set_text(&p.name); apn_entry.set_text(&p.apn); user.set_text(&p.username); password.set_text(""); autoconnect.set_active(p.autoconnect);
+                }
+            }
+        }
+    };
+    fill_form();
+    {
+        let cache=profiles_cache.clone(); let name=name.clone(); let apn_entry=apn_entry.clone(); let user=user.clone(); let password=password.clone(); let autoconnect=autoconnect.clone();
+        combo.connect_changed(move |combo| {
+            if let Some(id)=combo.active_id() { if let Some(p)=cache.borrow().iter().find(|p| p.uuid == id.as_str()) {
+                name.set_text(&p.name); apn_entry.set_text(&p.apn); user.set_text(&p.username); password.set_text(""); autoconnect.set_active(p.autoconnect);
+            }}
+        });
+    }
+
+    let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let create = gtk::Button::with_label(i18n::tr("create_apn"));
+    let save = gtk::Button::with_label("Save changes");
+    let activate = gtk::Button::with_label(i18n::tr("activate"));
+    let delete = gtk::Button::with_label(i18n::tr("delete"));
+    buttons.append(&create); buttons.append(&save); buttons.append(&activate); buttons.append(&delete); panel.append(&buttons);
+
+    {
+        let name=name.clone(); let apn_entry=apn_entry.clone(); let user=user.clone(); let password=password.clone(); let autoconnect=autoconnect.clone(); let status=status.clone();
+        create.connect_clicked(move |_| match apn::create(&name.text(), &apn_entry.text(), &user.text(), &password.text(), autoconnect.is_active()) {
+            Ok(()) => status.set_text("APN profile created. Press Refresh to reload the list."), Err(e) => status.set_text(&e)
+        });
+    }
+    {
+        let combo=combo.clone(); let name=name.clone(); let apn_entry=apn_entry.clone(); let user=user.clone(); let password=password.clone(); let autoconnect=autoconnect.clone(); let status=status.clone();
+        save.connect_clicked(move |_| {
+            let Some(id)=combo.active_id() else { status.set_text("Select an APN profile first."); return; };
+            match apn::update(id.as_str(), &name.text(), &apn_entry.text(), &user.text(), &password.text()

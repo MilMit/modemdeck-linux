@@ -1,0 +1,140 @@
+se 5 desktop integration",
+        modems.len(),
+        if modems.len() == 1 { "" } else { "s" }
+    ));
+    switcher.set_visible(modems.len() > 1);
+
+    for (index, modem) in modems.iter().enumerate() {
+        let page_name = format!("modem-{index}");
+        let page_title = short_modem_name(modem);
+        let card = modem_card(modem, client, stack, switcher, status);
+        localize_widget_tree(&card);
+        stack.add_titled(&card, Some(&page_name), &page_title);
+    }
+}
+
+fn clear_stack(stack: &gtk::Stack) {
+    let mut child = stack.first_child();
+    while let Some(widget) = child {
+        child = widget.next_sibling();
+        stack.remove(&widget);
+    }
+}
+
+fn short_modem_name(modem: &ModemInfo) -> String {
+    if modem.model.trim().is_empty() { modem.display_name() } else { modem.model.clone() }
+}
+
+fn modem_card(
+    modem: &ModemInfo,
+    client: &Rc<ModemManagerClient>,
+    stack: &gtk::Stack,
+    switcher: &gtk::StackSwitcher,
+    status: &gtk::Label,
+) -> gtk::Widget {
+    let card = gtk::Box::new(gtk::Orientation::Vertical, 14);
+    card.add_css_class("card");
+
+    let top = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    let identity = gtk::Box::new(gtk::Orientation::Vertical, 3);
+    identity.set_hexpand(true);
+
+    let name = gtk::Label::new(Some(&modem.display_name()));
+    name.set_xalign(0.0);
+    name.add_css_class("card-title");
+    identity.append(&name);
+
+    let operator = gtk::Label::new(Some(&format!("{} • {}", modem.operator_label(), modem.state_label())));
+    operator.set_widget_name(&live_widget_name("operator", &modem.object_path));
+    operator.set_xalign(0.0);
+    operator.add_css_class("dim-label");
+    identity.append(&operator);
+    top.append(&identity);
+
+    let network_text = modem.network_label();
+    let network = gtk::Label::new(Some(&network_text));
+    network.set_widget_name(&live_widget_name("network", &modem.object_path));
+    network.add_css_class("network-badge");
+    if modem.carrier_aggregation_active() { network.add_css_class("network-badge-plus"); }
+    top.append(&network);
+    card.append(&top);
+
+    let feature_row = communications_capability_row(modem, client);
+    card.append(&feature_row);
+
+    let nav = gtk::StackSwitcher::new();
+    nav.set_halign(gtk::Align::Start);
+    nav.add_css_class("section-switcher");
+    card.append(&nav);
+
+    let pages = gtk::Stack::builder().hexpand(true).vexpand(true).transition_type(gtk::StackTransitionType::Crossfade).build();
+    nav.set_stack(Some(&pages));
+    card.append(&pages);
+
+    let overview = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    overview.add_css_class("section-page");
+    let signal_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    let signal_text = gtk::Label::new(Some(&format!("Modem signal  {}%", modem.signal_percent)));
+    signal_text.set_widget_name(&live_widget_name("signal-text", &modem.object_path));
+    signal_text.set_width_chars(18);
+    signal_text.set_xalign(0.0);
+    let signal = gtk::ProgressBar::new();
+    signal.set_widget_name(&live_widget_name("signal-bar", &modem.object_path));
+    signal.set_hexpand(true);
+    signal.set_fraction(modem.signal_percent as f64 / 100.0);
+    signal.set_tooltip_text(Some(if modem.signal_recent { "Recent ModemManager signal reading" } else { "Cached ModemManager signal reading" }));
+    signal_row.append(&signal_text);
+    signal_row.append(&signal);
+    overview.append(&signal_row);
+
+    let (radio_name, radio) = modem.preferred_signal();
+    let signal_details = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    signal_details.add_css_class("signal-panel");
+    let details_title = gtk::Label::new(Some(&format!("{radio_name} radio metrics")));
+    details_title.set_widget_name(&live_widget_name("radio-title", &modem.object_path));
+    details_title.set_xalign(0.0);
+    details_title.add_css_class("section-title");
+    signal_details.append(&details_title);
+    let metrics = gtk::Grid::builder().column_spacing(10).row_spacing(10).column_homogeneous(true).build();
+    signal_metric_named(&metrics, 0, 0, "RSRP", radio.rsrp, "dBm", &live_widget_name("rsrp", &modem.object_path));
+    signal_metric_named(&metrics, 1, 0, "RSRQ", radio.rsrq, "dB", &live_widget_name("rsrq", &modem.object_path));
+    signal_metric_named(&metrics, 2, 0, "SNR", radio.snr, "dB", &live_widget_name("snr", &modem.object_path));
+    signal_metric_named(&metrics, 3, 0, "RSSI", radio.rssi, "dBm", &live_widget_name("rssi", &modem.object_path));
+    signal_details.append(&metrics);
+    if !radio.has_any() {
+        let hint = gtk::Label::new(Some("Extended signal metrics are not currently reported by this modem/driver."));
+        hint.set_xalign(0.0); hint.set_wrap(true); hint.add_css_class("dim-label"); signal_details.append(&hint);
+    }
+    overview.append(&signal_details);
+    overview.append(&connection_quality_panel(modem));
+    if let Some(snapshot) = serving_radio_snapshot_panel(modem) { overview.append(&snapshot); }
+    overview.append(&traffic_panel(modem));
+    let history_expander = gtk::Expander::new(Some("Signal history"));
+    history_expander.set_child(Some(&signal_history_panel(modem)));
+    overview.append(&history_expander);
+    pages.add_titled(&overview, Some("overview"), "Overview");
+
+    let network_page = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    network_page.add_css_class("section-page");
+    network_page.append(&band_profiles_panel(modem, client, stack, switcher, status));
+    network_page.append(&band_manager_panel(modem, client, stack, switcher, status));
+    let driver = DriverKind::identify(&modem.manufacturer, &modem.model);
+    if modem.vendor.deep_read_available { network_page.append(&vendor_panel(modem, client, stack, switcher, status)); }
+    if driver != DriverKind::Dw5821e { network_page.append(&serving_cell_panel(modem, client, stack, switcher, status)); }
+    network_page.append(&cell_lock_preview_panel(modem, client));
+    pages.add_titled(&network_page, Some("network"), "Network");
+
+    let sim_page = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    sim_page.add_css_class("section-page");
+    sim_page.append(&sim_security_panel(modem, client, stack, switcher, status));
+    sim_page.append(&apn_manager_panel(client, stack, switcher, status));
+    pages.add_titled(&sim_page, Some("sim"), "SIM & APN");
+
+    let messages_page = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    messages_page.add_css_class("section-page");
+    messages_page.append(&messages_panel(modem, client, stack, switcher, status));
+    pages.add_titled(&messages_page, Some("messages"), "Messages");
+
+    let calls_page = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    calls_page.add_css_class("section-page");
+    calls_page.append(&calls_and_ussd_panel(modem, client, stack, switcher, status))

@@ -1,0 +1,43 @@
+name: modemdeck
+base: core24
+version: '1.0.0-rc1.4'
+summary: Graphical cellular modem manager by MilMit
+description: |
+  ModemDeck is a lightweight GTK4 cellular modem manager for Linux with live
+  signal telemetry, safe band controls, APN/SIM management, SMS/USSD/voice
+  controls when exposed by the modem, and multi-vendor diagnostics.
+grade: devel
+confinement: strict
+
+apps:
+  modemdeck:
+    command: usr/bin/modemdeck
+    extensions: [gnome]
+    plugs:
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - network
+      - network-manager
+      - modem-manager
+      - serial-port
+      - raw-usb
+      - hardware-observe
+
+parts:
+  modemdeck:
+    plugin: rust
+    source: .
+    build-packages:
+      - pkg-config
+      - libgtk-4-dev
+      - libglib2.0-dev
+      - libudev-dev
+    stage-packages:
+      - libgtk-4-1
+    override-build: |
+      craftctl default
+      install -Dm755 target/release/modemdeck "$CRAFT_PART_INSTALL/usr/bin/modemdeck"
+      install -Dm644 data/net.milmit.ModemDeck.desktop "$CRAFT_PART_INSTALL/usr/share/applications/net.milmit.ModemDeck.desktop"
+      install -Dm644 assets/icons/net.milmit.ModemDeck.svg "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps/net.milmit.ModemDeck.svg"

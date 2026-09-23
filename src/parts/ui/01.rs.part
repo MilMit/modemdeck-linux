@@ -1,0 +1,166 @@
+ent = client.clone();
+                let stack = stack.clone();
+                let manager = client.manager().clone();
+                let update_pending = Rc::new(Cell::new(false));
+                manager.connect_local(
+                    "interface-proxy-properties-changed",
+                    false,
+                    {
+                        let update_pending = update_pending.clone();
+                        move |_| {
+                            if !update_pending.replace(true) {
+                                let client = client.clone();
+                                let stack = stack.clone();
+                                let update_pending = update_pending.clone();
+                                glib::timeout_add_local_once(Duration::from_millis(250), move || {
+                                    let modems = client.modems();
+                                    history::record(&modems);
+                                    let _ = runtime_status::publish(&runtime_status::status_from_modems(&modems));
+                                    update_live_modem_widgets(&stack, &modems);
+                                    update_pending.set(false);
+                                });
+                            }
+                            None
+                        }
+                    },
+                );
+            }
+
+            {
+                let window = window.clone();
+                let status = status.clone();
+                preferences.connect_clicked(move |_| {
+                    show_preferences(&window, &status);
+                });
+            }
+
+            {
+                let window = window.clone();
+                about_button.connect_clicked(move |_| {
+                    let dialog = gtk::AboutDialog::builder()
+                        .transient_for(&window)
+                        .modal(true)
+                        .program_name("ModemDeck by MilMit")
+                        .version(env!("CARGO_PKG_VERSION"))
+                        .comments("A lightweight Linux cellular modem manager by MilMit. Website: https://milmit.net
+
+Generic ModemManager support plus verified driver profiles for Dell/Foxconn DW5821e, Quectel, Fibocom, Sierra Wireless, Huawei, Telit/Cinterion and SIMCom. Advanced controls remain disabled when the modem/firmware is not verified.")
+                        .copyright("© 2026 MilMit")
+                        .license_type(gtk::License::Gpl30)
+                        .build();
+                    dialog.present();
+                });
+            }
+
+            {
+                let client = client.clone();
+                let status = status.clone();
+                diagnostics_button.connect_clicked(move |_| {
+                    match diagnostics::export_privacy_safe(&client.modems(), &Settings::load()) {
+                        Ok(path) => {
+                            status.remove_css_class("error-label");
+                            status.set_text(&format!("Privacy-safe diagnostics exported to {}", path.display()));
+                        }
+                        Err(error) => {
+                            status.add_css_class("error-label");
+                            status.set_text(&format!("Could not export diagnostics: {error}"));
+                        }
+                    }
+                });
+            }
+
+            {
+                let window = window.clone();
+                supported_button.connect_clicked(move |_| show_supported_modems(&window));
+            }
+            {
+                let window = window.clone();
+                let status = status.clone();
+                update_button.connect_clicked(move |_| run_update_check(&window, &status));
+            }
+            {
+                let window = window.clone();
+                notes_button.connect_clicked(move |_| show_release_notes(&window));
+            }
+            {
+                let status = status.clone();
+                report_button.connect_clicked(move |_| {
+                    match updates::open_url(updates::WEBSITE_URL) {
+                        Ok(()) => status.set_text("Opened milmit.net. Attach the privacy-safe diagnostic report when contacting support."),
+                        Err(error) => status.set_text(&error),
+                    }
+                });
+            }
+
+            {
+                let client = client.clone();
+                let stack = stack.clone();
+                let switcher = switcher.clone();
+                let status = status.clone();
+                let _ = power::watch_prepare_for_sleep(move |sleeping| {
+                    if sleeping {
+                        status.set_text("System is suspending; ModemDeck will resync after resume.");
+                    } else {
+                        let settings = Settings::load();
+                        client.ensure_signal_updates(settings.normalized_refresh_seconds());
+                        if settings.restore_profile_on_startup { restore_active_profile(&client); }
+                        render_modems(&stack, &switcher, &status, &client.modems(), &client);
+                        status.set_text("Resume detected • modem state resynchronized.");
+                    }
+                });
+            }
+
+            if app_settings.check_updates_on_startup {
+                let window = window.clone();
+                let status = status.clone();
+                glib::timeout_add_seconds_local_once(2, move || run_update_check(&window, &status));
+            }
+
+            {
+                let client = client.clone();
+                app.connect_shutdown(move |_| {
+                    client.restore_signal_updates(signal_refresh_rate);
+                });
+            }
+        }
+        Err(err) => {
+            refresh.set_sensitive(false);
+            status.set_text(&format!(
+                "Could not connect to ModemManager: {err}
+Make sure ModemManager is installed and running."
+            ));
+            status.add_css_class("error-label");
+            switcher.set_visible(false);
+        }
+    }
+
+    window.present();
+}
+
+fn render_modems(
+    stack: &gtk::Stack,
+    switcher: &gtk::StackSwitcher,
+    status: &gtk::Label,
+    modems: &[ModemInfo],
+    client: &Rc<ModemManagerClient>,
+) {
+    history::record(modems);
+    let _ = runtime_status::publish(&runtime_status::status_from_modems(modems));
+    clear_stack(stack);
+
+    if modems.is_empty() {
+        status.set_text("No cellular modem detected.");
+        switcher.set_visible(false);
+        let empty = gtk::Label::new(Some(
+            "Connect or enable a ModemManager-compatible WWAN modem.
+ModemDeck does not spawn a continuous mmcli polling loop.",
+        ));
+        empty.set_justify(gtk::Justification::Center);
+        empty.set_margin_top(80);
+        empty.add_css_class("empty-state");
+        stack.add_named(&empty, Some("empty"));
+        return;
+    }
+
+    status.set_text(&format!(
+        "{} modem{} detected • live D-Bus updates • Pha

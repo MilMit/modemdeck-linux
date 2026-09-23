@@ -1,0 +1,97 @@
+dems().into_iter().next() {
+        let _ = client.apply_persistent_bands(&modem.object_path, &profile.bands);
+    }
+}
+
+fn show_supported_modems(parent: &gtk::ApplicationWindow) {
+    let window = gtk::Window::builder()
+        .title(i18n::tr("supported_modems"))
+        .transient_for(parent).modal(true).default_width(820).default_height(500).build();
+    let scroller=gtk::ScrolledWindow::builder().hexpand(true).vexpand(true).build();
+    let root=gtk::Box::new(gtk::Orientation::Vertical,12); root.set_margin_top(18); root.set_margin_bottom(18); root.set_margin_start(18); root.set_margin_end(18);
+    let intro=gtk::Label::new(Some("Generic ModemManager monitoring works on many MBIM/QMI modems. Advanced telemetry is enabled only for families with a verified driver profile; unsupported controls stay disabled instead of sending guessed commands."));
+    intro.set_xalign(0.0); intro.set_wrap(true); root.append(&intro);
+    let grid=gtk::Grid::builder().column_spacing(12).row_spacing(8).build();
+    for (col,title) in ["Family","Vendor telemetry","Serving cell","Carrier aggregation","Neighbour cells","Cell-lock preview","5G diagnostics"].iter().enumerate() {
+        let l=gtk::Label::new(Some(title)); l.add_css_class("section-title"); l.set_xalign(0.0); grid.attach(&l,col as i32,0,1,1);
+    }
+    let rows=[
+        (DriverKind::Dw5821e,"Dell/Foxconn DW5821e / T77W968","DW5821e"),
+        (DriverKind::Quectel,"Quectel EC/EM/EP/RM/RG","RM520N"),
+        (DriverKind::Fibocom,"Fibocom L850/L860/FM series","FM350"),
+        (DriverKind::Sierra,"Sierra Wireless / AirPrime","EM9191"),
+        (DriverKind::Huawei,"Huawei WWAN/USB","Mobile Connect"),
+        (DriverKind::Telit,"Telit / Cinterion","FN980"),
+        (DriverKind::Simcom,"SIMCom","SIM8262"),
+        (DriverKind::Generic,"Generic MBIM/QMI","Generic"),
+    ];
+    for (row,(driver,name,model)) in rows.iter().enumerate() {
+        let caps=driver.capabilities(model);
+        let vals=[caps.vendor_read,caps.serving_cell,caps.carrier_aggregation,caps.neighbour_cells,caps.lte_cell_lock_preview,caps.nr5g_diagnostics];
+        let l=gtk::Label::new(Some(name)); l.set_xalign(0.0); grid.attach(&l,0,(row+1) as i32,1,1);
+        for (i,val) in vals.iter().enumerate() {
+            let l=gtk::Label::new(Some(if *val { "✓" } else { "—" })); l.set_xalign(0.5); l.add_css_class(if *val {"success-chip"} else {"capability-off"}); grid.attach(&l,(i+1) as i32,(row+1) as i32,1,1);
+        }
+    }
+    root.append(&grid);
+    let note=gtk::Label::new(Some("Capability support is model/firmware dependent. A green capability means ModemDeck has an implemented path; it is not a promise that every firmware from that vendor exposes the same command set.")); note.set_xalign(0.0); note.set_wrap(true); note.add_css_class("dim-label"); root.append(&note);
+    scroller.set_child(Some(&root)); window.set_child(Some(&scroller));
+    let widget:gtk::Widget=root.clone().upcast(); localize_widget_tree(&widget);
+    window.present();
+}
+
+fn show_release_notes(parent: &gtk::ApplicationWindow) {
+    let window=gtk::Window::builder().title(i18n::tr("release_notes")).transient_for(parent).modal(true).default_width(720).default_height(560).build();
+    let scroller=gtk::ScrolledWindow::builder().hexpand(true).vexpand(true).build();
+    let view=gtk::TextView::new(); view.set_editable(false); view.set_cursor_visible(false); view.set_wrap_mode(gtk::WrapMode::WordChar);
+    view.set_left_margin(16); view.set_right_margin(16); view.set_top_margin(16); view.set_bottom_margin(16);
+    view.buffer().set_text(include_str!("../CHANGELOG.md")); scroller.set_child(Some(&view)); window.set_child(Some(&scroller)); window.present();
+}
+
+fn run_update_check(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
+    status.set_text("Checking milmit.net for ModemDeck updates…");
+    match updates::check(env!("CARGO_PKG_VERSION")) {
+        Ok(updates::UpdateState::Current(manifest)) => {
+            status.remove_css_class("error-label");
+            status.set_text(&format!("ModemDeck is up to date ({}).", manifest.version));
+        }
+        Ok(updates::UpdateState::Available(manifest)) => {
+            status.remove_css_class("error-label");
+            status.set_text(&format!("ModemDeck {} is available.", manifest.version));
+            let window=gtk::Window::builder().title("ModemDeck update available").transient_for(parent).modal(true).default_width(480).default_height(260).build();
+            let box_=gtk::Box::new(gtk::Orientation::Vertical,12); box_.set_margin_top(18); box_.set_margin_bottom(18); box_.set_margin_start(18); box_.set_margin_end(18);
+            let title=gtk::Label::new(Some(&format!("Version {} is available", manifest.version))); title.add_css_class("card-title"); title.set_xalign(0.0); box_.append(&title);
+            if !manifest.notes.trim().is_empty() { let note=gtk::Label::new(Some(&manifest.notes)); note.set_xalign(0.0); note.set_wrap(true); box_.append(&note); }
+            let open=gtk::Button::with_label("Open download page"); open.add_css_class("suggested-action"); box_.append(&open);
+            let url=if manifest.url.trim().is_empty() { updates::WEBSITE_URL.to_string() } else { manifest.url.clone() };
+            open.connect_clicked(move |_| { let _=updates::open_url(&url); });
+            window.set_child(Some(&box_)); window.present();
+        }
+        Err(error) => { status.add_css_class("error-label"); status.set_text(&error); }
+    }
+}
+
+fn show_preferences(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
+    let settings = Settings::load();
+    let window = gtk::Window::builder()
+        .title("ModemDeck Preferences")
+        .transient_for(parent)
+        .modal(true)
+        .default_width(520)
+        .default_height(620)
+        .build();
+
+    let scroller=gtk::ScrolledWindow::builder().hexpand(true).vexpand(true).build();
+    let root = gtk::Box::new(gtk::Orientation::Vertical, 14);
+    root.set_margin_top(20); root.set_margin_bottom(20); root.set_margin_start(20); root.set_margin_end(20);
+
+    let background = gtk::Switch::builder().active(settings.background_monitor).build();
+    background.add_css_class("compact-switch"); background.set_valign(gtk::Align::Center); background.set_size_request(48, 28);
+    root.append(&preference_row("Background monitor", "Keeps the lightweight event-driven modem monitor running for the top-bar indicator, usage accounting and profile restore.", &background));
+
+    let notifications = gtk::Switch::builder().active(settings.notifications).build();
+    notifications.add_css_class("compact-switch"); notifications.set_valign(gtk::Align::Center); notifications.set_size_request(48, 28);
+    root.append(&preference_row("Notifications", "Notify on meaningful mobile-network changes while the monitor is running.", &notifications));
+
+    let restore_profile = gtk::Switch::builder().active(settings.restore_profile_on_startup).build();
+    restore_profile.add_css_class("compact-switch"); restore_prof

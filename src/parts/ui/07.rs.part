@@ -1,0 +1,110 @@
+, autoconnect.is_active()) {
+                Ok(()) => status.set_text("APN profile updated."), Err(e) => status.set_text(&e)
+            }
+        });
+    }
+    {
+        let combo=combo.clone(); let status=status.clone(); let client=client.clone(); let stack=stack.clone(); let switcher=switcher.clone();
+        activate.connect_clicked(move |_| {
+            let Some(id)=combo.active_id() else { status.set_text("Select an APN profile first."); return; };
+            match apn::activate(id.as_str()) { Ok(()) => status.set_text("APN profile activated."), Err(e) => status.set_text(&e) }
+            render_modems(&stack,&switcher,&status,&client.modems(),&client);
+        });
+    }
+    {
+        let combo=combo.clone(); let status=status.clone();
+        delete.connect_clicked(move |_| {
+            let Some(id)=combo.active_id() else { status.set_text("Select an APN profile first."); return; };
+            match apn::delete(id.as_str()) { Ok(()) => status.set_text("APN profile deleted. Press Refresh to reload the list."), Err(e) => status.set_text(&e) }
+        });
+    }
+    panel.upcast()
+}
+
+fn band_profiles_panel(
+    modem: &ModemInfo,
+    client: &Rc<ModemManagerClient>,
+    stack: &gtk::Stack,
+    switcher: &gtk::StackSwitcher,
+    status: &gtk::Label,
+) -> gtk::Widget {
+    let panel=gtk::Box::new(gtk::Orientation::Vertical,10); panel.add_css_class("profiles-panel");
+    let title=gtk::Label::new(Some(i18n::tr("profiles"))); title.set_xalign(0.0); title.add_css_class("section-title"); panel.append(&title);
+    let store=profiles::load();
+    let combo=gtk::ComboBoxText::new();
+    for profile in &store.profiles { combo.append(Some(&profile.name), &format!("{} • {}", profile.name, bands_summary(&profile.bands))); }
+    if combo.set_active_id(Some(&store.active_profile)) == false && !store.profiles.is_empty() { combo.set_active(Some(0)); }
+    panel.append(&combo);
+
+    let row=gtk::Box::new(gtk::Orientation::Horizontal,8);
+    let apply=gtk::Button::with_label(i18n::tr("apply_profile"));
+    let save=gtk::Button::with_label(i18n::tr("save_profile"));
+    let delete=gtk::Button::with_label(i18n::tr("delete_profile"));
+    row.append(&apply); row.append(&save); row.append(&delete); panel.append(&row);
+    let note=gtk::Label::new(Some("Built-in profiles: Auto, B42 TD-LTE, and B1+B3+B7. Profile changes use the same 45-second safe rollback as the Band manager."));
+    note.set_xalign(0.0); note.set_wrap(true); note.add_css_class("dim-label"); panel.append(&note);
+
+    {
+        let combo=combo.clone(); let client=client.clone(); let path=modem.object_path.clone(); let stack=stack.clone(); let switcher=switcher.clone(); let status=status.clone();
+        apply.connect_clicked(move |_| {
+            let Some(name)=combo.active_id() else { return; };
+            let Some(profile)=profiles::find(name.as_str()) else { status.set_text("Profile disappeared from storage."); return; };
+            match client.apply_band_selection(&path,&profile.bands) {
+                Ok(()) => { let _=profiles::set_active(&profile.name); status.set_text("Profile applied. Confirm the band change within 45 seconds in Band manager."); if let Some(generation)=client.band_change_generation(&path) { let path2=path.clone(); let client2=client.clone(); let stack2=stack.clone(); let switcher2=switcher.clone(); let status2=status.clone(); glib::timeout_add_seconds_local(45, move || { if client2.band_change_generation(&path2)==Some(generation) { if let Err(error)=client2.rollback_band_selection(&path2) { status2.set_text(&format!("Automatic band rollback failed: {error}")); } else if let Some(modem)=client2.modems().into_iter().find(|m| m.object_path==path2) { if let Some(name)=profiles::matching_name(&modem.current_bands) { let _=profiles::set_active(&name); } else { let _=profiles::set_active(""); } } render_modems(&stack2,&switcher2,&status2,&client2.modems(),&client2); } glib::ControlFlow::Break }); } }
+                Err(e) => status.set_text(&e),
+            }
+            render_modems(&stack,&switcher,&status,&client.modems(),&client);
+        });
+    }
+    {
+        let parent_panel=panel.clone(); let current=modem.current_bands.clone(); let status=status.clone();
+        save.connect_clicked(move |_| show_save_profile_popover(&parent_panel,&current,&status));
+    }
+    {
+        let combo=combo.clone(); let status=status.clone();
+        delete.connect_clicked(move |_| {
+            let Some(name)=combo.active_id() else { return; };
+            match profiles::remove(name.as_str()) { Ok(()) => status.set_text("Profile deleted. Refresh the window to reload profiles."), Err(e) => status.set_text(&e) }
+        });
+    }
+    panel.upcast()
+}
+
+fn show_save_profile_popover(_parent: &gtk::Box, bands: &[u32], status: &gtk::Label) {
+    let window=gtk::Window::builder().title("Save band profile").default_width(360).default_height(120).build();
+    let box_=gtk::Box::new(gtk::Orientation::Vertical,8); box_.set_margin_top(14); box_.set_margin_bottom(14); box_.set_margin_start(14); box_.set_margin_end(14);
+    let entry=gtk::Entry::new(); entry.set_placeholder_text(Some("Profile name")); box_.append(&entry);
+    let button=gtk::Button::with_label(i18n::tr("save")); button.add_css_class("suggested-action"); box_.append(&button); window.set_child(Some(&box_));
+    let bands=bands.to_vec(); let status=status.clone(); let close=window.clone();
+    button.connect_clicked(move |_| match profiles::upsert(&entry.text(), bands.clone()) {
+        Ok(()) => { status.set_text("Band profile saved."); close.close(); }, Err(e) => status.set_text(&e)
+    });
+    window.present();
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BandPresetState { Auto, Fdd, Tdd, Custom }
+
+fn current_band_preset(modem: &ModemInfo) -> BandPresetState {
+    if modem.current_bands.contains(&256) { return BandPresetState::Auto; }
+    let current: BTreeSet<u32> = modem.current_bands.iter().copied().collect();
+    let supported: BTreeSet<u32> = modem.supported_bands.iter().copied().collect();
+    if !supported.is_empty() && current == supported { return BandPresetState::Auto; }
+    if !current.is_empty() && current.iter().all(|band| is_lte_mm_band(*band)) {
+        if current.iter().all(|band| is_lte_tdd_mm_band(*band)) { return BandPresetState::Tdd; }
+        if current.iter().all(|band| !is_lte_tdd_mm_band(*band)) { return BandPresetState::Fdd; }
+    }
+    BandPresetState::Custom
+}
+
+fn connection_quality_panel(modem: &ModemInfo) -> gtk::Widget {
+    let (_, radio) = modem.preferred_signal();
+    let panel = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    panel.add_css_class("quality-panel");
+    let title = gtk::Label::new(Some("Radio quality"));
+    title.set_xalign(0.0);
+    title.add_css_class("section-title");
+    panel.append(&title);
+
+    if !radio.has_any() {
+        let hint = gtk::Label::new(Some("A quality assessment needs RSRP, 

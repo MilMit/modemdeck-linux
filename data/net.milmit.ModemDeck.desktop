@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ModemDeck by MilMit
+Comment=MilMit lightweight cellular modem manager
+Exec=modemdeck
+Icon=net.milmit.ModemDeck
+Terminal=false
+Categories=Network;System;
+Keywords=LTE;5G;WWAN;Modem;Cellular;Band;MilMit;
+StartupNotify=true
+X-GNOME-UsesNotifications=true

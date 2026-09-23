@@ -1,0 +1,7 @@
+{
+  "uuid": "modemdeck@milmit.net",
+  "name": "ModemDeck by MilMit",
+  "description": "Low-overhead cellular network indicator for ModemDeck by MilMit • milmit.net",
+  "version": 1,
+  "shell-version": ["45", "46", "47", "48", "49", "50"]
+}

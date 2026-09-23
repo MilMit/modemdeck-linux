@@ -1,0 +1,102 @@
+tState::Custom => "Custom",
+    };
+    let preset_status = gtk::Label::new(Some(&format!("Detected band mode: {preset_name}")));
+    preset_status.set_xalign(0.0);
+    preset_status.add_css_class("dim-label");
+    panel.append(&preset_status);
+
+    let presets = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    presets.add_css_class("band-presets");
+    let auto = gtk::Button::with_label("Auto");
+    auto.set_tooltip_text(Some("Return band selection to ModemManager's automatic/any-band mode."));
+    presets.append(&auto);
+
+    let fdd_bands: Vec<u32> = modem.supported_bands.iter().copied().filter(|band| is_lte_mm_band(*band) && !is_lte_tdd_mm_band(*band)).collect();
+    let fdd = gtk::Button::with_label("LTE FDD");
+    fdd.set_sensitive(!fdd_bands.is_empty());
+    presets.append(&fdd);
+
+    let tdd_bands: Vec<u32> = modem.supported_bands.iter().copied().filter(|band| is_lte_tdd_mm_band(*band)).collect();
+    let tdd = gtk::Button::with_label("TD-LTE");
+    tdd.set_sensitive(!tdd_bands.is_empty());
+    presets.append(&tdd);
+
+    match current_band_preset(modem) {
+        BandPresetState::Auto => { auto.add_css_class("band-preset-active"); auto.add_css_class("suggested-action"); },
+        BandPresetState::Fdd => { fdd.add_css_class("band-preset-active"); fdd.add_css_class("suggested-action"); },
+        BandPresetState::Tdd => { tdd.add_css_class("band-preset-active"); tdd.add_css_class("suggested-action"); },
+        BandPresetState::Custom => {}
+    }
+    panel.append(&presets);
+
+    {
+        let path=modem.object_path.clone();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();
+        auto.connect_clicked(move |_| apply_bands_and_schedule(&path,vec![256],&client,&stack,&switcher,&status));
+    }
+    {
+        let path=modem.object_path.clone();let bands=fdd_bands.clone();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();
+        fdd.connect_clicked(move |_| apply_bands_and_schedule(&path,bands.clone(),&client,&stack,&switcher,&status));
+    }
+    {
+        let path=modem.object_path.clone();let bands=tdd_bands.clone();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();
+        tdd.connect_clicked(move |_| apply_bands_and_schedule(&path,bands.clone(),&client,&stack,&switcher,&status));
+    }
+
+    let lte_bands: Vec<u32> = modem.supported_bands.iter().copied().filter(|band| is_lte_mm_band(*band)).collect();
+
+    if lte_bands.is_empty() {
+        let unavailable=gtk::Label::new(Some("This modem does not expose individual LTE bands through ModemManager, so custom band selection is unavailable in the generic driver."));
+        unavailable.set_xalign(0.0);unavailable.set_wrap(true);unavailable.add_css_class("warning-label");panel.append(&unavailable);
+    } else {
+        let custom_title=gtk::Label::new(Some("Custom LTE bands • choose one or more to leave the preset mode"));
+        custom_title.set_xalign(0.0);custom_title.add_css_class("metric-title");panel.append(&custom_title);
+
+        let grid=gtk::Grid::builder().column_spacing(8).row_spacing(8).column_homogeneous(true).build();
+        grid.add_css_class("band-grid");
+        let auto_current=current_band_preset(modem)==BandPresetState::Auto;
+        let mut checks:Vec<(u32,gtk::CheckButton)>=Vec::new();
+        for(index,band)in lte_bands.iter().copied().enumerate(){
+            let check=gtk::CheckButton::with_label(&band_label(band));
+            check.set_active(!auto_current&&modem.current_bands.contains(&band));
+            check.add_css_class("band-check");
+            grid.attach(&check,(index%4)as i32,(index/4)as i32,1,1);
+            checks.push((band,check));
+        }
+        panel.append(&grid);
+
+        let apply=gtk::Button::with_label("Apply custom selection");
+        apply.add_css_class("suggested-action");
+        apply.set_sensitive(checks.iter().any(|(_,check)|check.is_active()));
+        panel.append(&apply);
+
+        for(_,check)in &checks{
+            let apply=apply.clone();let checks_for_toggle=checks.clone();
+            check.connect_toggled(move |_|apply.set_sensitive(checks_for_toggle.iter().any(|(_,item)|item.is_active())));
+        }
+
+        {
+            let path=modem.object_path.clone();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();let checks=checks.clone();
+            apply.connect_clicked(move |_|{
+                let selected:Vec<u32>=checks.iter().filter_map(|(band,check)|check.is_active().then_some(*band)).collect();
+                if selected.is_empty(){status.set_text("Select at least one LTE band before applying a custom selection.");return;}
+                apply_bands_and_schedule(&path,selected,&client,&stack,&switcher,&status);
+            });
+        }
+    }
+
+    if !modem.band_change.message.is_empty() {
+        let message=gtk::Label::new(Some(&modem.band_change.message));message.set_xalign(0.0);message.set_wrap(true);
+        if modem.band_change.pending_confirmation{message.add_css_class("warning-label");}else{message.add_css_class("success-chip");}
+        panel.append(&message);
+    }
+
+    if modem.band_change.pending_confirmation {
+        let actions=gtk::Box::new(gtk::Orientation::Horizontal,8);
+        let confirm=gtk::Button::with_label("Keep this selection");confirm.add_css_class("suggested-action");
+        let undo=gtk::Button::with_label("Restore previous now");actions.append(&confirm);actions.append(&undo);panel.append(&actions);
+        {
+            let path=modem.object_path.clone();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();
+            confirm.connect_clicked(move |_|{
+                client.confirm_band_selection(&path);
+                if let Some(modem)=client.modems().into_iter().find(|m|m.object_path==path){
+                    if let Some(name)=profiles::matching_name(&modem.curre

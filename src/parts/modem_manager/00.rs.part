@@ -1,0 +1,180 @@
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+use gio::prelude::*;
+
+use crate::{
+    drivers::DriverKind,
+    helper,
+    model::{BandChangeState, ModemInfo, RadioSignal, ServingCellInfo, VendorInfo},
+    safety,
+};
+
+const MM_BUS: &str = "org.freedesktop.ModemManager1";
+const MM_ROOT: &str = "/org/freedesktop/ModemManager1";
+const MODEM_IFACE: &str = "org.freedesktop.ModemManager1.Modem";
+const MODEM_3GPP_IFACE: &str = "org.freedesktop.ModemManager1.Modem.Modem3gpp";
+const MODEM_SIGNAL_IFACE: &str = "org.freedesktop.ModemManager1.Modem.Signal";
+const SIM_IFACE: &str = "org.freedesktop.ModemManager1.Sim";
+
+#[derive(Debug, Clone, Default)]
+struct CellCacheEntry {
+    cells: Vec<ServingCellInfo>,
+    error: String,
+    source: String,
+}
+
+#[derive(Clone)]
+pub struct ModemManagerClient {
+    manager: gio::DBusObjectManagerClient,
+    // Object path -> previous Modem.Signal refresh rate. We only restore rates
+    // that ModemDeck itself changed while the window was open.
+    signal_rates_changed: Rc<RefCell<HashMap<String, u32>>>,
+    cell_cache: Rc<RefCell<HashMap<String, CellCacheEntry>>>,
+    vendor_cache: Rc<RefCell<HashMap<String, VendorInfo>>>,
+    band_change_cache: Rc<RefCell<HashMap<String, BandChangeState>>>,
+}
+
+impl ModemManagerClient {
+    pub fn new() -> Result<Self, glib::Error> {
+        let manager = gio::DBusObjectManagerClient::for_bus_sync(
+            gio::BusType::System,
+            gio::DBusObjectManagerClientFlags::DO_NOT_AUTO_START,
+            MM_BUS,
+            MM_ROOT,
+            None::<&gio::Cancellable>,
+        )?;
+
+        Ok(Self {
+            manager,
+            signal_rates_changed: Rc::new(RefCell::new(HashMap::new())),
+            cell_cache: Rc::new(RefCell::new(HashMap::new())),
+            vendor_cache: Rc::new(RefCell::new(HashMap::new())),
+            band_change_cache: Rc::new(RefCell::new(HashMap::new())),
+        })
+    }
+
+    pub fn manager(&self) -> &gio::DBusObjectManagerClient {
+        &self.manager
+    }
+
+    pub fn has_interface(&self, object_path: &str, interface_name: &str) -> bool {
+        self.manager
+            .object(object_path)
+            .and_then(|object| gio::prelude::DBusObjectExt::interface(&object, interface_name))
+            .is_some()
+    }
+
+    pub fn modems(&self) -> Vec<ModemInfo> {
+        let mut modems: Vec<_> = self
+            .manager
+            .objects()
+            .into_iter()
+            .filter_map(|object| self.read_modem(&object))
+            .collect();
+        modems.sort_by(|a, b| a.object_path.cmp(&b.object_path));
+        modems
+    }
+
+    pub fn ensure_signal_updates(&self, requested_rate: u32) {
+        for object in self.manager.objects() {
+            self.ensure_signal_updates_for_object(&object, requested_rate);
+        }
+    }
+
+    pub fn ensure_signal_updates_for_object(&self, object: &gio::DBusObject, requested_rate: u32) {
+        let path = object.object_path().to_string();
+        if self.signal_rates_changed.borrow().contains_key(&path) {
+            return;
+        }
+
+        let Some(signal_iface) = gio::prelude::DBusObjectExt::interface(object, MODEM_SIGNAL_IFACE) else {
+            return;
+        };
+        let Ok(signal_proxy) = signal_iface.dynamic_cast::<gio::DBusProxy>() else {
+            return;
+        };
+
+        let previous_rate = u32_prop(&signal_proxy, "Rate").unwrap_or(0);
+        if previous_rate != 0 {
+            return;
+        }
+
+        let parameters = (requested_rate,).to_variant();
+        if signal_proxy
+            .call_sync(
+                "Setup",
+                Some(&parameters),
+                gio::DBusCallFlags::NONE,
+                5_000,
+                None::<&gio::Cancellable>,
+            )
+            .is_ok()
+        {
+            self.signal_rates_changed
+                .borrow_mut()
+                .insert(path, previous_rate);
+        }
+    }
+
+    pub fn restore_signal_updates(&self, requested_rate: u32) {
+        let changed: Vec<(String, u32)> = self
+            .signal_rates_changed
+            .borrow()
+            .iter()
+            .map(|(path, rate)| (path.clone(), *rate))
+            .collect();
+
+        for (path, previous_rate) in changed {
+            let Some(object) = self.manager.object(&path) else {
+                continue;
+            };
+            let Some(signal_iface) = gio::prelude::DBusObjectExt::interface(&object, MODEM_SIGNAL_IFACE) else {
+                continue;
+            };
+            let Ok(signal_proxy) = signal_iface.dynamic_cast::<gio::DBusProxy>() else {
+                continue;
+            };
+
+            // Do not overwrite a refresh rate changed by another program after us.
+            if u32_prop(&signal_proxy, "Rate") != Some(requested_rate) {
+                continue;
+            }
+
+            let parameters = (previous_rate,).to_variant();
+            let _ = signal_proxy.call_sync(
+                "Setup",
+                Some(&parameters),
+                gio::DBusCallFlags::NONE,
+                2_000,
+                None::<&gio::Cancellable>,
+            );
+        }
+
+        self.signal_rates_changed.borrow_mut().clear();
+    }
+
+    /// If ModemDeck crashed or was killed while a band change was waiting for
+    /// confirmation, restore the last known-good selection on the matching
+    /// physical modem before allowing new changes.
+    pub fn recover_pending_band_change(&self) -> Result<Option<String>, String> {
+        let Some(transaction) = safety::read_pending() else { return Ok(None); };
+        let object = self.manager.objects().into_iter().find(|object| {
+            let Some(iface) = gio::prelude::DBusObjectExt::interface(object, MODEM_IFACE) else { return false; };
+            let Ok(proxy) = iface.dynamic_cast::<gio::DBusProxy>() else { return false; };
+            string_prop(&proxy, "Device") == transaction.device_uid
+        }).ok_or_else(|| "A pending band rollback exists, but the matching modem is not currently available.".to_string())?;
+
+        let modem_iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)
+            .ok_or_else(|| "The modem interface disappeared during crash recovery.".to_string())?;
+        let modem = modem_iface.dynamic_cast::<gio::DBusProxy>()
+            .map_err(|_| "Could not create modem proxy during crash recovery.".to_string())?;
+        self.set_current_bands_proxy(&modem, &transaction.previous_bands)?;
+        safety::clear_pending();
+        Ok(Some(format!("Recovered an unconfirmed band change and restored {} band setting(s).", transaction.previous_bands.len())))
+    }
+
+    pub fn apply_persistent_bands(&self, object_path: &str, bands: &[u32]) -> Result<(), String> {
+        if bands.is_empty() { return Err("Profile has no bands.".into()); }
+        let object = self.manager.object(object_path).ok_or_else(|| "The modem disappeared from ModemManager.".to_string())?;
+        let iface = gio::prelude::DBusObjectExt::interface(&object, MODEM_IFACE)
+            .ok_or_else(|| "The generic 

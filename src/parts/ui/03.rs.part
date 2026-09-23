@@ -1,0 +1,163 @@
+; 
+    pages.add_titled(&calls_page, Some("calls"), "Calls & USSD");
+
+    let advanced = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    advanced.add_css_class("section-page");
+    advanced.append(&driver_capabilities_panel(modem));
+    advanced.append(&technical_details_panel(modem));
+    pages.add_titled(&advanced, Some("advanced"), "Advanced");
+
+    card.upcast::<gtk::Widget>()
+}
+
+fn communications_capability_row(modem: &ModemInfo, client: &Rc<ModemManagerClient>) -> gtk::Widget {
+    const MESSAGING: &str = "org.freedesktop.ModemManager1.Modem.Messaging";
+    const VOICE: &str = "org.freedesktop.ModemManager1.Modem.Voice";
+    const USSD: &str = "org.freedesktop.ModemManager1.Modem.Modem3gpp.Ussd";
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 7);
+    row.add_css_class("feature-row");
+    for (label, available) in [
+        ("SMS", client.has_interface(&modem.object_path, MESSAGING)),
+        ("Calls", client.has_interface(&modem.object_path, VOICE)),
+        ("USSD", client.has_interface(&modem.object_path, USSD)),
+    ] {
+        let chip = gtk::Label::new(Some(&format!("{}  {}", if available { "✓" } else { "—" }, label)));
+        chip.add_css_class(if available { "success-chip" } else { "capability-off" });
+        row.append(&chip);
+    }
+    row.upcast()
+}
+
+fn technical_details_panel(modem: &ModemInfo) -> gtk::Widget {
+    let technical = gtk::Expander::new(Some("Technical details"));
+    technical.add_css_class("technical-expander");
+    let technical_box = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    technical_box.add_css_class("technical-grid");
+    let grid = gtk::Grid::builder().column_spacing(24).row_spacing(12).build();
+    add_metric(&grid, 0, 0, "Firmware", value_or_dash(&modem.revision));
+    add_metric(&grid, 1, 0, "Capabilities", &modem.capabilities_label());
+    add_metric(&grid, 0, 1, "Supported bands", &supported_bands_summary(&modem.supported_bands));
+    add_metric(&grid, 1, 1, "ModemManager plugin", value_or_dash(&modem.plugin));
+    add_metric(&grid, 0, 2, "Primary port", value_or_dash(&modem.primary_port));
+    add_metric(&grid, 1, 2, "D-Bus path", &modem.object_path);
+    technical_box.append(&grid);
+    let configured_title = gtk::Label::new(Some("Configured / allowed bands"));
+    configured_title.set_xalign(0.0);
+    configured_title.add_css_class("metric-title");
+    technical_box.append(&configured_title);
+    let configured_bands = gtk::Label::new(Some(&bands_summary(&modem.current_bands)));
+    configured_bands.set_xalign(0.0);
+    configured_bands.set_wrap(true);
+    configured_bands.set_wrap_mode(gtk::pango::WrapMode::WordChar);
+    configured_bands.set_selectable(true);
+    technical_box.append(&configured_bands);
+    let note = gtk::Label::new(Some("Configured bands are allowed bands, not necessarily the currently serving LTE/5G carrier."));
+    note.set_xalign(0.0);
+    note.set_wrap(true);
+    note.add_css_class("dim-label");
+    technical_box.append(&note);
+    technical.set_child(Some(&technical_box));
+    technical.upcast()
+}
+
+fn messages_panel(
+    modem: &ModemInfo,
+    client: &Rc<ModemManagerClient>,
+    _stack: &gtk::Stack,
+    _switcher: &gtk::StackSwitcher,
+    status: &gtk::Label,
+) -> gtk::Widget {
+    const MESSAGING: &str = "org.freedesktop.ModemManager1.Modem.Messaging";
+    let panel = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    panel.add_css_class("communications-panel");
+    let title = gtk::Label::new(Some("SMS messages"));
+    title.set_xalign(0.0);
+    title.add_css_class("section-title");
+    panel.append(&title);
+
+    if !client.has_interface(&modem.object_path, MESSAGING) {
+        let unavailable = gtk::Label::new(Some(
+            "This modem/firmware does not currently expose ModemManager Messaging. SMS controls stay disabled instead of guessing vendor AT commands.",
+        ));
+        unavailable.set_xalign(0.0);
+        unavailable.set_wrap(true);
+        unavailable.add_css_class("warning-label");
+        panel.append(&unavailable);
+        return panel.upcast();
+    }
+
+    let compose = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    compose.add_css_class("message-compose");
+    let number = gtk::Entry::new();
+    number.set_placeholder_text(Some("Phone number, e.g. +98912..."));
+    compose.append(&number);
+    let message = gtk::TextView::new();
+    message.set_wrap_mode(gtk::WrapMode::WordChar);
+    message.set_top_margin(8);
+    message.set_bottom_margin(8);
+    message.set_left_margin(8);
+    message.set_right_margin(8);
+    message.set_height_request(88);
+    compose.append(&message);
+    let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let send = gtk::Button::with_label("Send SMS");
+    send.add_css_class("suggested-action");
+    let refresh = gtk::Button::with_label("Load / refresh messages");
+    actions.append(&send);
+    actions.append(&refresh);
+    compose.append(&actions);
+    panel.append(&compose);
+
+    let list = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    let placeholder = gtk::Label::new(Some("Messages are loaded on demand to keep background work near zero."));
+    placeholder.set_xalign(0.0);
+    placeholder.add_css_class("dim-label");
+    list.append(&placeholder);
+    let scroller = gtk::ScrolledWindow::builder().min_content_height(240).vexpand(true).build();
+    scroller.set_child(Some(&list));
+    panel.append(&scroller);
+
+    {
+        let path = modem.object_path.clone();
+        let list = list.clone();
+        let status = status.clone();
+        refresh.connect_clicked(move |_| populate_sms_list(&list, &path, &status));
+    }
+    {
+        let path = modem.object_path.clone();
+        let list = list.clone();
+        let status = status.clone();
+        let number = number.clone();
+        let buffer = message.buffer();
+        send.connect_clicked(move |_| {
+            let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), true).to_string();
+            match communications::send_sms(&path, number.text().as_str(), &text) {
+                Ok(()) => {
+                    status.remove_css_class("error-label");
+                    status.set_text("SMS queued/sent through ModemManager.");
+                    buffer.set_text("");
+                    populate_sms_list(&list, &path, &status);
+                }
+                Err(error) => {
+                    status.add_css_class("error-label");
+                    status.set_text(&error);
+                }
+            }
+        });
+    }
+
+    panel.upcast()
+}
+
+fn populate_sms_list(list: &gtk::Box, modem_path: &str, status: &gtk::Label) {
+    clear_box(list);
+    match communications::list_sms(modem_path) {
+        Ok(messages) if messages.is_empty() => {
+            let label = gtk::Label::new(Some("No SMS messages are currently exposed by the modem."));
+            label.set_xalign(0.0);
+            label.add_css_class("dim-label");
+            list.append(&label);
+        }
+        Ok(messages) => {
+            for sms in messages {
+                let 

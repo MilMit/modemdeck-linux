@@ -1,0 +1,59 @@
+atus: &gtk::Label,
+) -> gtk::Widget {
+    let panel = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    panel.add_css_class("vendor-panel");
+
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+    let title = gtk::Label::new(Some(&format!("Vendor driver • {}", modem.vendor.driver_name)));
+    title.set_xalign(0.0); title.set_hexpand(true); title.add_css_class("section-title"); header.append(&title);
+
+    let deep = gtk::Button::with_label(if modem.vendor.read_source.is_empty() {"Read radio details"} else {"Refresh radio details"});
+    deep.set_tooltip_text(Some("Runs only the fixed read-only AT profile for the detected modem family. If ModemManager blocks AT commands, the optional administrator fallback can briefly inhibit the modem; active mobile data may reconnect."));
+    header.append(&deep); panel.append(&header);
+    {
+        let path=modem.object_path.clone();let client=client.clone();let stack=stack.clone();let switcher=switcher.clone();let status=status.clone();
+        deep.connect_clicked(move|button|{button.set_sensitive(false);let _=client.refresh_vendor_info(&path);render_modems(&stack,&switcher,&status,&client.modems(),&client);});
+    }
+    if !modem.vendor.read_source.is_empty(){let source=gtk::Label::new(Some(&format!("Read source: {}",modem.vendor.read_source)));source.set_xalign(0.0);source.set_wrap(true);source.add_css_class("success-chip");panel.append(&source);}
+    if !modem.vendor.error.is_empty(){let error=gtk::Label::new(Some(&modem.vendor.error));error.set_xalign(0.0);error.set_wrap(true);error.add_css_class("warning-label");panel.append(&error);}
+
+    if modem.vendor.serving_band.is_some()||modem.vendor.earfcn.is_some()||modem.vendor.pci.is_some()||modem.vendor.ca_active.is_some(){
+        let grid=gtk::Grid::builder().column_spacing(12).row_spacing(10).column_homogeneous(true).build();
+        add_metric(&grid,0,0,"Serving band",&modem.vendor.serving_band.map(|b|format!("LTE B{b}")).unwrap_or_else(||"—".into()));
+        add_metric(&grid,1,0,"EARFCN",&modem.vendor.earfcn.map(|v|v.to_string()).unwrap_or_else(||"—".into()));
+        add_metric(&grid,2,0,"PCI",&modem.vendor.pci.map(|v|v.to_string()).unwrap_or_else(||"—".into()));
+        add_metric(&grid,3,0,"Carrier aggregation",match modem.vendor.ca_active{Some(true)=>"Active • 4G+",Some(false)=>"Not active",None=>"Unknown"});
+        add_metric(&grid,0,1,"Duplex",&modem.vendor.serving_band.map(|band|if is_lte_tdd_band(band){"TDD-LTE"}else{"FDD-LTE"}.to_string()).unwrap_or_else(||"—".into()));
+        add_metric(&grid,1,1,"Bandwidth",if modem.vendor.bandwidth.trim().is_empty(){"—"}else{&modem.vendor.bandwidth});
+        panel.append(&grid);
+        if !modem.vendor.ca_summary.is_empty(){let ca=gtk::Label::new(Some(&modem.vendor.ca_summary));ca.set_xalign(0.0);ca.set_wrap(true);ca.set_selectable(true);ca.add_css_class("mono-detail");panel.append(&ca);}
+    }else if modem.vendor.error.is_empty(){
+        let hint=gtk::Label::new(Some("A vendor read-only profile is available for this modem family. ModemDeck first tries ModemManager's AT path. If the system blocks it, the optional privileged fallback uses only a hard-coded read-only command list and then hands the modem back to ModemManager."));
+        hint.set_xalign(0.0);hint.set_wrap(true);hint.add_css_class("dim-label");panel.append(&hint);
+    }
+    panel.upcast::<gtk::Widget>()
+}
+
+fn signal_history_panel(modem:&ModemInfo)->gtk::Widget{
+    let panel=gtk::Box::new(gtk::Orientation::Vertical,8);panel.add_css_class("history-panel");
+    let title=gtk::Label::new(Some("Signal history"));title.set_xalign(0.0);title.add_css_class("section-title");panel.append(&title);
+    let samples=history::load_for(modem);
+    if samples.len()<2{let hint=gtk::Label::new(Some("History fills automatically from ModemManager D-Bus signal updates. No high-frequency polling is used."));hint.set_xalign(0.0);hint.set_wrap(true);hint.add_css_class("dim-label");panel.append(&hint);return panel.upcast::<gtk::Widget>();}
+    let min=samples.iter().map(|sample|sample.signal_percent).min().unwrap_or(0);let max=samples.iter().map(|sample|sample.signal_percent).max().unwrap_or(0);
+    let summary=gtk::Label::new(Some(&format!("{} samples • {}%–{}%",samples.len(),min,max)));summary.set_xalign(0.0);summary.add_css_class("dim-label");panel.append(&summary);
+    let chart=gtk::DrawingArea::new();chart.set_content_height(120);chart.set_hexpand(true);
+    let points=samples.iter().map(|sample|sample.signal_percent as f64).collect::<Vec<_>>();
+    chart.set_draw_func(move|_,cr,width,height|{
+        if points.len()<2||width<=2||height<=2{return;}
+        let width=width as f64;let height=height as f64;cr.set_line_width(2.0);cr.set_source_rgba(0.35,0.65,1.0,0.95);
+        for(index,value)in points.iter().enumerate(){let x=(index as f64/(points.len().saturating_sub(1)as f64))*(width-8.0)+4.0;let y=height-4.0-(value.clamp(0.0,100.0)/100.0)*(height-8.0);if index==0{cr.move_to(x,y);}else{cr.line_to(x,y);}}
+        let _=cr.stroke();
+    });
+    panel.append(&chart);panel.upcast::<gtk::Widget>()
+}
+
+fn restore_active_profile(client:&Rc<ModemManagerClient>){
+    if safety::read_pending().is_some(){return;}
+    let store=profiles::load();
+    let Some(profile)=store.profiles.iter().find(|p|p.name==store.active_profile)else{return;};
+    if let Some(modem)=client.mo
