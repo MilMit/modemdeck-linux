@@ -1,6 +1,6 @@
 # ModemDeck Linux by MilMit
 
-**Website:** https://milmit.net
+**Website:** https://milmit.net · **GitHub organization:** [MilMit](https://github.com/MilMit)
 
 <p align="center">
   <img src="assets/icons/net.milmit.ModemDeck.svg" width="128" alt="ModemDeck icon">
