@@ -1,3 +1,44 @@
+## 2.0.0-beta.1 — Rust + Slint Migration Candidate (pre-release)
+
+- **Complete GTK4 Removal & Slint 1.19.1 UI**:
+  - Replaced all GTK4/GDK4/Cairo/GIO/GLib UI code with a centralized Slint Design System (`ui/tokens.slint`, `ui/theme.slint`, `ui/components.slint`, `ui/main.slint`) and `src/ui/slint_app.rs`.
+  - Added Dark, Light, and High-Contrast themes, Basic/Advanced/Expert modes, full RTL/Persian + 8-language support, collapsible sidebar, and reduced-motion toggle.
+- **Pure-Rust D-Bus & Storage**:
+  - Migrated `modem/helper.rs`, `modem/manager.rs`, `services/communications.rs`, `core/power.rs`, and `services/monitor.rs` from `gio::DBusProxy`/`glib::MainLoop` to async `zbus 6.5` + `tokio` (`crate::core::block_on`).
+  - Added `rusqlite` SQLite WAL storage (`src/storage/sqlite_db.rs`) alongside JSON history.
+- **System Tray, Desktop Notifications, Close-to-Tray & Single-Instance IPC**:
+  - Added Linux StatusNotifierItem system tray (`src/tray/mod.rs` via `ksni`) with dynamic 22x22 ARGB32 signal-bar icon, live tooltip, quick actions, and XDG autostart support.
+  - Added Freedesktop D-Bus notifications (`src/notifications/mod.rs`) with cooldowns and notification center.
+  - Added Unix domain socket single-instance activation (`$XDG_RUNTIME_DIR/modemdeck-ui.sock`) and `--minimized` / `--tray` startup flags.
+- **Packaging & Docs**:
+  - Updated DEB (`packaging/build-deb.sh`) and Snap (`snap/snapcraft.yaml`) to drop `libgtk-4-1` / `gnome` extension; added Flatpak, RPM, Arch `PKGBUILD`, AppStream metainfo, and `docs/SLINT_UI_GUIDE.md`.
+- **Beta release preparation**:
+  - Made version metadata channel-aware, added a GitHub Releases fallback for the unavailable hosted update manifest, and prevented stable builds from offering prereleases.
+  - Removed four unused direct Rust dependencies after static dependency analysis.
+
+## 1.1.0 — Professional Network Analysis & Modem Management Upgrade
+
+- **Live Signal & Radio Quality Fixes**:
+  - Fixed `Extended signal metrics are not currently reported by this modem/driver.` remaining visible after live RSRP/RSRQ/RSSI/SNR values arrive.
+  - Fixed Radio Quality panel not updating live when extended signal metrics arrive after initial render.
+  - Added signal timestamps, Fresh/Cached/Stale/Unavailable state tracking, and context-aware cache invalidation on SIM, Band, or Operator changes.
+- **LTE & 5G Signal Scoring System**:
+  - Replaced equal-weight averaging with separate LTE and 5G NR scoring models (0–100 score, 7 grades, Confidence level, explanatory reasons).
+  - Enforced interference guardrails so strong RSRP with poor SNR/RSRQ cannot be misclassified as high quality.
+- **Profile Rollback Fix**:
+  - Active band profiles are no longer persisted before confirmation; rejected/timed-out/crashed profile changes roll back cleanly without re-applying on restart.
+- **Band Analyzer**:
+  - Automated multi-band frequency test engine (Quick, Standard, Deep, Custom, Radio-only, Internet Performance, Stability, Carrier Aggregation modes; 30s–30m durations).
+  - Serving band verification, data cap enforcement, exclusive operation lock, crash-safe `ScanTransaction`, and best-for-use-case winners.
+- **Persistent Band Lock & Recovery**:
+  - Added Automatic, Temporary Lock, Persistent Lock, and Smart Automatic modes with Safe vs Strict policies, lock verification states, and anti-reconnect-loop protection.
+  - Scoped persistent locks to stable Modem UID + SIM hash + Operator across reboots, suspend/resume, and hot-plug events.
+- **Carrier Aggregation, Speed Test, Stability, History, Hotspot**:
+  - Added CA Analyzer, interface-bound Internet Speed Test (with VPN vs Direct route detection), multi-target Connection Stability Monitor, Operator Comparison, persistent History DB with Cairo charts + CSV/JSON export, and NetworkManager Mobile Hotspot.
+- **Architecture & UI**:
+  - Migrated from `.rs.part` fragments to clean standard Rust modules (`core`, `modem`, `drivers`, `analyzer`, `locking`, `optimization`, `hotspot`, `storage`, `services`, `diagnostics`, `i18n`, `ui`).
+  - Added Dark / Light / System themes, improved Dark Theme contrast, and Persian (RTL) support.
+
 ## 1.0.0-rc1.4.1 — Tested Ubuntu package
 
 - GitHub Actions build passes for Rust, Debian package, AppImage, source archive and checksums.

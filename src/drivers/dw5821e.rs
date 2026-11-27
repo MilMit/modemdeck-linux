@@ -27,15 +27,19 @@ pub fn parse(debug: &str, ca: &str) -> VendorInfo {
             if info.bandwidth.is_empty() {
                 info.bandwidth = value.trim().to_string();
             }
-        } else if line.starts_with("eNB ID(PCI):") {
-            if let Some(open) = line.rfind('(') {
-                if let Some(close) = line[open + 1..].find(')') {
-                    info.pci = line[open + 1..open + 1 + close]
-                        .trim()
-                        .parse::<u32>()
-                        .ok();
-                }
+        } else if let Some(value) = line.strip_prefix("MIMO:") {
+            if info.mimo.is_empty() {
+                info.mimo = value.trim().to_string();
             }
+        } else if let Some(value) = line.strip_prefix("MODULATION:") {
+            if info.modulation.is_empty() {
+                info.modulation = value.trim().to_string();
+            }
+        } else if line.starts_with("eNB ID(PCI):")
+            && let Some(open) = line.rfind('(')
+            && let Some(close) = line[open + 1..].find(')')
+        {
+            info.pci = line[open + 1..open + 1 + close].trim().parse::<u32>().ok();
         }
     }
 
@@ -47,13 +51,13 @@ pub fn parse(debug: &str, ca: &str) -> VendorInfo {
         if line.contains("PCC") && line.contains("Band") {
             has_pcc = true;
             ca_lines.push(line.to_string());
-            if let Some(component) = parse_ca_component(line) {
+            if let Some(component) = parse_ca_component(line, true) {
                 info.ca_components.push(component);
             }
         } else if line.contains("SCC") && line.contains("Band") {
             has_scc = true;
             ca_lines.push(line.to_string());
-            if let Some(component) = parse_ca_component(line) {
+            if let Some(component) = parse_ca_component(line, true) {
                 info.ca_components.push(component);
             }
         }
@@ -61,7 +65,11 @@ pub fn parse(debug: &str, ca: &str) -> VendorInfo {
 
     info.ca_active = if has_scc || info.ca_components.len() > 1 {
         Some(true)
-    } else if has_pcc || !info.ca_components.is_empty() || ca.trim().is_empty() || ca.trim().eq_ignore_ascii_case("OK") {
+    } else if has_pcc
+        || !info.ca_components.is_empty()
+        || ca.trim().is_empty()
+        || ca.trim().eq_ignore_ascii_case("OK")
+    {
         Some(false)
     } else {
         None
@@ -87,12 +95,17 @@ pub fn cell_lock_preview(earfcn: u32, pci: u32) -> Result<String, String> {
     let earfcn_bytes = (earfcn as u16).to_le_bytes();
     let pci_bytes = (pci as u16).to_le_bytes();
     Ok(format!(
-        "Preview only — not executed\n\nLock EARFCN + PCI:\nat^efs=\"/nv/item_files/modem/lte/rrc/csp/pci_lock\",4,\"{:02X},{:02X},{:02X},{:02X}\"\n\nUnlock:\nat^efs=\"/nv/item_files/modem/lte/rrc/csp/pci_lock\",0\n\nA modem restart is normally required. This EFS method can disable carrier aggregation on some networks, so ModemDeck does not execute it automatically in this alpha.",
+        "Preview only — not executed (NV/EFS write protection)\n\n\
+         Lock EARFCN + PCI:\n\
+         at^efs=\"/nv/item_files/modem/lte/rrc/csp/pci_lock\",4,\"{:02X},{:02X},{:02X},{:02X}\"\n\n\
+         Unlock:\n\
+         at^efs=\"/nv/item_files/modem/lte/rrc/csp/pci_lock\",0\n\n\
+         Safety note: DW5821e cell lock modifies modem NV/EFS storage and requires a modem reset to take effect. It can also disable Carrier Aggregation on some networks. Per ModemDeck safety policy, NV/EFS is never written automatically.",
         earfcn_bytes[0], earfcn_bytes[1], pci_bytes[0], pci_bytes[1]
     ))
 }
 
-fn parse_ca_component(line: &str) -> Option<CarrierComponent> {
+fn parse_ca_component(line: &str, active: bool) -> Option<CarrierComponent> {
     let role = line
         .split_whitespace()
         .next()
@@ -109,8 +122,26 @@ fn parse_ca_component(line: &str) -> Option<CarrierComponent> {
     let bandwidth_mhz = line
         .split("Band_width is")
         .nth(1)
-        .and_then(|tail| tail.trim().split_whitespace().next())
+        .and_then(|tail| tail.split_whitespace().next())
         .and_then(|value| value.parse::<f64>().ok());
+
+    let earfcn = line.split("EARFCN").nth(1).and_then(|tail| {
+        tail.chars()
+            .skip_while(|c| !c.is_ascii_digit())
+            .take_while(|c| c.is_ascii_digit())
+            .collect::<String>()
+            .parse::<u32>()
+            .ok()
+    });
+
+    let pci = line.split("PCI").nth(1).and_then(|tail| {
+        tail.chars()
+            .skip_while(|c| !c.is_ascii_digit())
+            .take_while(|c| c.is_ascii_digit())
+            .collect::<String>()
+            .parse::<u32>()
+            .ok()
+    });
 
     if band.is_none() && bandwidth_mhz.is_none() {
         return None;
@@ -119,7 +150,12 @@ fn parse_ca_component(line: &str) -> Option<CarrierComponent> {
     Some(CarrierComponent {
         role,
         band,
+        earfcn,
+        pci,
         bandwidth_mhz,
+        mimo: None,
+        modulation: None,
+        active,
     })
 }
 

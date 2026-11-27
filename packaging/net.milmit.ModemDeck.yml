@@ -1,0 +1,30 @@
+app-id: net.milmit.ModemDeck
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: modemdeck
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --system-talk-name=org.freedesktop.ModemManager1
+  - --system-talk-name=org.freedesktop.NetworkManager
+  - --system-talk-name=org.freedesktop.login1
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.Notifications
+modules:
+  - name: modemdeck
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --locked --offline
+      - install -Dm755 target/release/modemdeck /app/bin/modemdeck
+      - install -Dm644 data/net.milmit.ModemDeck.desktop /app/share/applications/net.milmit.ModemDeck.desktop
+      - install -Dm644 data/net.milmit.ModemDeck.metainfo.xml /app/share/metainfo/net.milmit.ModemDeck.metainfo.xml
+      - install -Dm644 assets/icons/net.milmit.ModemDeck.svg /app/share/icons/hicolor/scalable/apps/net.milmit.ModemDeck.svg
+    sources:
+      - type: dir
+        path: ..

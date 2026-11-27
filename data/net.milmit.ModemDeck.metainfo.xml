@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>net.milmit.ModemDeck</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>ModemDeck</name>
+  <summary>WWAN and mobile broadband manager for Linux</summary>
+  <description>
+    <p>ModemDeck is a Linux desktop application for inspecting and managing cellular modems through ModemManager and NetworkManager. It is written in Rust and uses Slint for its interface.</p>
+    <p>Available tools include signal and cell telemetry, supported-band controls with confirmation and rollback, APN and SIM management, traffic history, diagnostics, and optional desktop indicators. Availability depends on the modem, firmware, desktop session, and system services.</p>
+  </description>
+  <launchable type="desktop-id">net.milmit.ModemDeck.desktop</launchable>
+  <provides>
+    <binary>modemdeck</binary>
+  </provides>
+  <url type="homepage">https://milmit.net</url>
+  <url type="bugtracker">https://github.com/MilMit/modemdeck-linux/issues</url>
+  <url type="vcs-browser">https://github.com/MilMit/modemdeck-linux</url>
+  <url type="help">https://github.com/MilMit/modemdeck-linux/tree/main/docs</url>
+  <developer id="net.milmit">
+    <name>MilMit</name>
+  </developer>
+  <categories>
+    <category>Network</category>
+    <category>System</category>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>WWAN</keyword>
+    <keyword>LTE</keyword>
+    <keyword>4G</keyword>
+    <keyword>5G</keyword>
+    <keyword>Modem</keyword>
+    <keyword>Mobile Broadband</keyword>
+    <keyword>Cellular</keyword>
+    <keyword>Band Lock</keyword>
+    <keyword>Signal</keyword>
+    <keyword>Network Manager</keyword>
+  </keywords>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="2.0.0-beta.1" date="2026-11-27" type="development">
+      <description>
+        <p>First public beta candidate for the Rust and Slint migration. This build requires wider desktop and modem hardware validation before a stable release.</p>
+      </description>
+    </release>
+    <release version="1.0.0-rc1.4.1" date="2026-09-23" type="development">
+      <description>
+        <p>Previous Linux release candidate published before the Rust and Slint migration.</p>
+      </description>
+    </release>
+  </releases>
+</component>

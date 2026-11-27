@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "family": "Foxconn",
+  "last_updated": "2026-11-27",
+  "devices": [
+    {
+      "manufacturer": "Foxconn",
+      "oem_manufacturer": "Foxconn",
+      "model": "T77W968",
+      "commercial_name": "Foxconn T77W968 Snapdragon X20 LTE",
+      "aliases": ["T77W968", "DW5821e", "L850-Q"],
+      "oem_aliases": ["Dell DW5821e", "HP lt4220", "Lenovo T77W968"],
+      "usb_ids": ["0489:e0b4", "0489:e0b5", "413c:81d7", "413c:81e0"],
+      "pci_ids": [],
+      "chipset": "Qualcomm SDX20",
+      "protocols": ["ModemManager", "MBIM", "QMI", "AT"],
+      "firmware_restrictions": "eSIM availability depends on OEM SKU and eUICC chip presence.",
+      "capabilities": {
+        "internet_connection": "HardwareVerified",
+        "band_lock": "HardwareVerified",
+        "cell_lock": "Experimental",
+        "carrier_aggregation": "HardwareVerified",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Documented"
+      },
+      "known_issues": [],
+      "official_references": ["https://modemmanager.org/docs/modemmanager/fcc-unlock/"],
+      "verification_status": "HardwareVerified",
+      "last_verified_date": "2026-11-27"
+    },
+    {
+      "manufacturer": "Foxconn",
+      "oem_manufacturer": "Foxconn",
+      "model": "T99W175",
+      "commercial_name": "Foxconn T99W175 Snapdragon X55 5G",
+      "aliases": ["T99W175", "DW5930e"],
+      "oem_aliases": ["Dell DW5930e", "HP T99W175", "Lenovo T99W175"],
+      "usb_ids": ["0489:e0c3"],
+      "pci_ids": ["105b:e0ab"],
+      "chipset": "Qualcomm SDX55",
+      "protocols": ["ModemManager", "MHI", "MBIM", "QMI", "AT"],
+      "firmware_restrictions": "PCIe MHI device; FCC unlock required on OEM laptops.",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Untested",
+        "carrier_aggregation": "Documented",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Documented"
+      },
+      "known_issues": [],
+      "official_references": ["https://modemmanager.org/docs/modemmanager/fcc-unlock/"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    },
+    {
+      "manufacturer": "Foxconn",
+      "oem_manufacturer": "Foxconn",
+      "model": "T99W696",
+      "commercial_name": "Foxconn T99W696 5G Sub-6",
+      "aliases": ["T99W696", "T99W373"],
+      "oem_aliases": [],
+      "usb_ids": [],
+      "pci_ids": ["105b:e0d8"],
+      "chipset": "Qualcomm SDX62 / SDX65",
+      "protocols": ["ModemManager", "MHI", "MBIM", "QMI", "AT"],
+      "firmware_restrictions": "",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Untested",
+        "cell_lock": "Untested",
+        "carrier_aggregation": "Documented",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Documented"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.foxconn.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    }
+  ]
+}

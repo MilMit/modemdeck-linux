@@ -1,0 +1,9 @@
+{
+  "source_of_truth": "src/i18n/catalog.rs",
+  "validated_by": "tests::test_slint_migration_sqlite_tray_notifications_and_svg",
+  "coverage_percent": 100.0,
+  "duplicate_keys": 0,
+  "empty_translations": 0,
+  "placeholder_mismatches": 0,
+  "locales": ["en", "fa", "ar", "tr", "de", "fr", "es", "ru"]
+}

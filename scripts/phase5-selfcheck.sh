@@ -41,9 +41,21 @@ fi
 
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/modemdeck"
-[[ -f "$CONFIG_HOME/profiles.json" ]] && ok "band profiles database exists" || warn "band profiles database not created yet"
-[[ -f "$CONFIG_HOME/data-usage.json" ]] && ok "data usage database exists" || warn "data usage database not created yet"
-[[ -f "$CONFIG_HOME/pending-band-change.json" ]] && warn "an unconfirmed band transaction is pending" || ok "no pending band rollback transaction"
+if [[ -f "$CONFIG_HOME/profiles.json" ]]; then
+  ok "band profiles database exists"
+else
+  warn "band profiles database not created yet"
+fi
+if [[ -f "$CONFIG_HOME/data-usage.json" ]]; then
+  ok "data usage database exists"
+else
+  warn "data usage database not created yet"
+fi
+if [[ -f "$CONFIG_HOME/pending-band-change.json" ]]; then
+  warn "an unconfirmed band transaction is pending"
+else
+  ok "no pending band rollback transaction"
+fi
 
 if pgrep -x modemdeck >/dev/null 2>&1; then
   ps -C modemdeck -o pid=,pcpu=,pmem=,rss=,cmd=

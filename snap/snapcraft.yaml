@@ -1,23 +1,23 @@
 name: modemdeck
 base: core24
-version: '1.0.0-rc1.4.1'
-summary: Graphical cellular modem manager by MilMit
+version: '2.0.0-beta.1'
+summary: Cross-platform cellular modem manager & analyzer by MilMit
 description: |
-  ModemDeck is a lightweight GTK4 cellular modem manager for Linux with live
-  signal telemetry, safe band controls, APN/SIM management, SMS/USSD/voice
-  controls when exposed by the modem, and multi-vendor diagnostics.
+  ModemDeck is a modern Rust + Slint cellular modem manager for Linux with live
+  signal telemetry, safe band controls, global operator & Auto APN database,
+  SMS/USSD/voice controls, System Tray, Modem Doctor, and multi-vendor diagnostics.
 grade: devel
 confinement: strict
 
 apps:
   modemdeck:
     command: usr/bin/modemdeck
-    extensions: [gnome]
     plugs:
       - desktop
       - desktop-legacy
       - wayland
       - x11
+      - opengl
       - network
       - network-manager
       - modem-manager
@@ -28,16 +28,18 @@ apps:
 parts:
   modemdeck:
     plugin: rust
-    source: .
+    source: ..
     build-packages:
       - pkg-config
-      - libgtk-4-dev
-      - libglib2.0-dev
+      - libfontconfig-dev
+      - libxkbcommon-dev
       - libudev-dev
     stage-packages:
-      - libgtk-4-1
+      - libfontconfig1
+      - libxkbcommon0
     override-build: |
       craftctl default
       install -Dm755 target/release/modemdeck "$CRAFT_PART_INSTALL/usr/bin/modemdeck"
       install -Dm644 data/net.milmit.ModemDeck.desktop "$CRAFT_PART_INSTALL/usr/share/applications/net.milmit.ModemDeck.desktop"
+      install -Dm644 data/net.milmit.ModemDeck.metainfo.xml "$CRAFT_PART_INSTALL/usr/share/metainfo/net.milmit.ModemDeck.metainfo.xml"
       install -Dm644 assets/icons/net.milmit.ModemDeck.svg "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps/net.milmit.ModemDeck.svg"

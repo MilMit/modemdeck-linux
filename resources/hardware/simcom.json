@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "family": "SIMCom",
+  "last_updated": "2026-11-27",
+  "devices": [
+    {
+      "manufacturer": "SIMCom",
+      "oem_manufacturer": "SIMCom Wireless",
+      "model": "SIM7100",
+      "commercial_name": "SIMCom SIM7100E/A Cat.3 LTE",
+      "aliases": ["SIM7100", "SIM7100E", "SIM7100A"],
+      "oem_aliases": [],
+      "usb_ids": ["1e0e:9001"],
+      "pci_ids": [],
+      "chipset": "Qualcomm MDM9215",
+      "protocols": ["ModemManager", "QMI", "AT"],
+      "firmware_restrictions": "",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Unsupported",
+        "carrier_aggregation": "Unsupported",
+        "esim": "Unsupported",
+        "gps": "Documented",
+        "fcc_lock": "Unsupported"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.simcom.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    },
+    {
+      "manufacturer": "SIMCom",
+      "oem_manufacturer": "SIMCom Wireless",
+      "model": "SIM7600",
+      "commercial_name": "SIMCom SIM7600E/G-H Cat.4 LTE",
+      "aliases": ["SIM7600", "SIM7600E", "SIM7600G", "SIM7600G-H"],
+      "oem_aliases": [],
+      "usb_ids": ["1e0e:9001", "1e0e:9011"],
+      "pci_ids": [],
+      "chipset": "Qualcomm MDM9607",
+      "protocols": ["ModemManager", "QMI", "MBIM", "AT"],
+      "firmware_restrictions": "",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Unsupported",
+        "carrier_aggregation": "Unsupported",
+        "esim": "Unsupported",
+        "gps": "Documented",
+        "fcc_lock": "Unsupported"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.simcom.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    },
+    {
+      "manufacturer": "SIMCom",
+      "oem_manufacturer": "SIMCom Wireless",
+      "model": "SIM8200",
+      "commercial_name": "SIMCom SIM8200EA-M2 5G Sub-6",
+      "aliases": ["SIM8200", "SIM8200EA-M2", "SIM8202G-M2"],
+      "oem_aliases": [],
+      "usb_ids": ["1e0e:9001", "1e0e:901b"],
+      "pci_ids": [],
+      "chipset": "Qualcomm SDX55",
+      "protocols": ["ModemManager", "QMI", "MBIM", "AT"],
+      "firmware_restrictions": "",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Untested",
+        "carrier_aggregation": "Documented",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Unsupported"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.simcom.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    },
+    {
+      "manufacturer": "SIMCom",
+      "oem_manufacturer": "SIMCom Wireless",
+      "model": "SIM8262",
+      "commercial_name": "SIMCom SIM8262E-M2 / SIM8262A-M2 5G",
+      "aliases": ["SIM8262", "SIM8262E-M2", "SIM8262A-M2"],
+      "oem_aliases": [],
+      "usb_ids": ["1e0e:9001", "1e0e:901e"],
+      "pci_ids": [],
+      "chipset": "Qualcomm SDX62",
+      "protocols": ["ModemManager", "QMI", "MBIM", "AT"],
+      "firmware_restrictions": "",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Untested",
+        "carrier_aggregation": "Documented",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Unsupported"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.simcom.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    }
+  ]
+}

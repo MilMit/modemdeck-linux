@@ -1,0 +1,89 @@
+import { Tokens, AppThemeMode } from "tokens.slint";
+
+export global Theme {
+    in-out property <AppThemeMode> mode: AppThemeMode.dark;
+    in-out property <color> custom-accent: #38bdf8;
+    in-out property <bool> reduced-motion: false;
+    in-out property <bool> is-rtl: false;
+    in-out property <float> font-scale: 1.0;
+
+    out property <duration> anim-fast: reduced-motion ? 0ms : 130ms;
+    out property <duration> anim-normal: reduced-motion ? 0ms : 240ms;
+    out property <duration> anim-slow: reduced-motion ? 0ms : 380ms;
+
+    // Surfaces
+    out property <color> bg:
+        mode == AppThemeMode.light ? #eef2f7 :
+        mode == AppThemeMode.high-contrast ? #000000 : #080c14;
+
+    out property <color> sidebar-bg:
+        mode == AppThemeMode.light ? #ffffff :
+        mode == AppThemeMode.high-contrast ? #0a0a0a : #0d1320;
+
+    out property <color> surface:
+        mode == AppThemeMode.light ? #ffffff :
+        mode == AppThemeMode.high-contrast ? #111111 : #101726;
+
+    out property <color> card-bg:
+        mode == AppThemeMode.light ? #ffffff :
+        mode == AppThemeMode.high-contrast ? #141414 : #131c2e;
+
+    out property <color> chip-bg:
+        mode == AppThemeMode.light ? #e2e8f0 :
+        mode == AppThemeMode.high-contrast ? #1f1f1f : #1b273e;
+
+    out property <color> input-bg:
+        mode == AppThemeMode.light ? #f8fafc :
+        mode == AppThemeMode.high-contrast ? #0c0c0c : #0c1220;
+
+    // Text
+    out property <color> text:
+        mode == AppThemeMode.light ? #0f172a :
+        mode == AppThemeMode.high-contrast ? #ffffff : #f8fafc;
+
+    out property <color> text-muted:
+        mode == AppThemeMode.light ? #475569 :
+        mode == AppThemeMode.high-contrast ? #e2e8f0 : #94a3b8;
+
+    // Borders & Interactive states
+    out property <color> border:
+        mode == AppThemeMode.light ? #cbd5e1 :
+        mode == AppThemeMode.high-contrast ? #ffffff : #25334d;
+
+    out property <color> border-subtle:
+        mode == AppThemeMode.light ? #e2e8f0 :
+        mode == AppThemeMode.high-contrast ? #777777 : #1b273c;
+
+    out property <color> hover:
+        mode == AppThemeMode.light ? #e2e8f0 :
+        mode == AppThemeMode.high-contrast ? #2a2a2a : #202e47;
+
+    // Semantic high-contrast palette
+    out property <color> primary:
+        mode == AppThemeMode.light ? #2563eb :
+        mode == AppThemeMode.high-contrast ? #38bdf8 : #0284c7;
+
+    out property <color> accent:
+        mode == AppThemeMode.light ? #2563eb : #38bdf8;
+
+    out property <color> secondary:
+        mode == AppThemeMode.light ? #1d4ed8 : #0369a1;
+
+    out property <color> success:
+        mode == AppThemeMode.light ? #059669 : #10b981;
+
+    out property <color> warning:
+        mode == AppThemeMode.light ? #d97706 : #f59e0b;
+
+    out property <color> error:
+        mode == AppThemeMode.light ? #dc2626 : #f43f5e;
+
+    out property <color> info:
+        mode == AppThemeMode.light ? #0284c7 : #38bdf8;
+
+    out property <color> chart-line:
+        mode == AppThemeMode.light ? #2563eb : #38bdf8;
+
+    out property <color> chart-secondary:
+        mode == AppThemeMode.light ? #059669 : #10b981;
+}

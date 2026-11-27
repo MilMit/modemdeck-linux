@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_DIR="${HOME}/.local/bin"
 APP_DIR="${HOME}/.local/share/applications"
 SYSTEMD_DIR="${HOME}/.config/systemd/user"
+ICON_DIR="${HOME}/.local/share/icons/hicolor"
 
 command -v cargo >/dev/null 2>&1 || {
   echo "cargo not found. Run ./scripts/install-deps-ubuntu.sh first." >&2
@@ -12,11 +13,13 @@ command -v cargo >/dev/null 2>&1 || {
 }
 
 cd "$ROOT_DIR"
-cargo build --release
+cargo build --release --locked
 
-mkdir -p "$BIN_DIR" "$APP_DIR" "$SYSTEMD_DIR"
+mkdir -p "$BIN_DIR" "$APP_DIR" "$SYSTEMD_DIR" "$ICON_DIR/scalable/apps"
 install -m 0755 target/release/modemdeck "$BIN_DIR/modemdeck"
-install -m 0644 data/net.milmit.ModemDeck.desktop "$APP_DIR/net.milmit.ModemDeck.desktop"
+sed "s|^Exec=modemdeck|Exec=${BIN_DIR}/modemdeck|" data/net.milmit.ModemDeck.desktop > "$APP_DIR/net.milmit.ModemDeck.desktop"
+chmod 0644 "$APP_DIR/net.milmit.ModemDeck.desktop"
+install -m 0644 assets/icons/net.milmit.ModemDeck.svg "$ICON_DIR/scalable/apps/net.milmit.ModemDeck.svg"
 install -m 0644 data/net.milmit.ModemDeck-monitor.service "$SYSTEMD_DIR/net.milmit.ModemDeck-monitor.service"
 
 if command -v systemctl >/dev/null 2>&1; then
@@ -25,6 +28,10 @@ fi
 
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+fi
+
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache --force --ignore-theme-index --quiet "$ICON_DIR" >/dev/null 2>&1 || true
 fi
 
 # Install the GNOME indicator files when GNOME is available. Enabling may need

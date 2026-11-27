@@ -1,32 +1,20 @@
-# ModemDeck Linux v1.0.0-rc1.4.1
+# ModemDeck v2.0.0-beta.1
 
-First tested release candidate of **ModemDeck Linux by MilMit**.
+This is a beta candidate for the Rust + Slint migration. It is not a stable release. Modem hardware, desktop-session, and packaging coverage is not yet complete.
 
-This build has passed the GitHub Actions Linux pipeline and the Debian package has been installed successfully on the target Ubuntu system.
+## Included in this candidate
 
-## Included
+- Rust backend and Slint desktop interface, with GTK4 removed from the build and runtime dependency set.
+- Updated desktop packaging metadata and a versioned AppStream entry.
+- Rust Semantic Versioning for update comparisons, so stable installs are not offered prereleases.
+- Fallback to the public GitHub Releases API when the hosted update manifest cannot be read; the app opens release information and does not replace package-manager installs.
+- Removed unused direct Rust dependencies.
+- Existing modem, band-control, diagnostics, localization, tray, and GNOME integration code carried into the candidate. Availability remains dependent on modem firmware, system services, and desktop environment.
 
-- Native GTK4 Linux interface
-- ModemManager / NetworkManager integration
-- LTE / TD-LTE / 4G+ telemetry
-- Safe band controls with rollback
-- APN and SIM controls
-- SMS, calls and USSD when exposed by ModemManager
-- Live RX/TX and usage accounting
-- Multi-vendor diagnostics
-- GNOME integration
-- Debian package and AppImage outputs
+## Validation
 
-## Install on Ubuntu
+The source quality gates and package checks are recorded with the release build. Hardware-sensitive band changes, crash recovery on physical devices, Wayland/X11 behavior across desktops, and all language layouts require additional independent testing.
 
-Download `MilMit-ModemDeck-1.0.0-rc1.4.1-amd64.deb` and run:
+## Installation
 
-```bash
-sudo apt install ./MilMit-ModemDeck-1.0.0-rc1.4.1-amd64.deb
-```
-
-The package requires GTK4, ModemManager and NetworkManager. `pkexec` is recommended for privileged vendor-specific reads but is not a hard install dependency.
-
-## Status
-
-This is an RC release, not the final stable 1.0 tag. Advanced modem behavior still varies by modem model and firmware, and cell-lock writes remain preview-only by design.
+Use only package artifacts attached to a reviewed release. For managed installs, use the matching distribution package manager. Do not use this prerelease as a stable update channel.

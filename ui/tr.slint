@@ -1,0 +1,178 @@
+// Live-reactive Translation Global for ModemDeck Slint UI
+
+export global Tr {
+    in-out property <string> home-sharing: "Internet path & sharing";
+    in-out property <string> home-route: "Default internet route";
+    in-out property <string> home-manage-sharing: "Manage sharing";
+    in-out property <string> scan-live-title: "Live mobile network scan";
+    in-out property <string> scan-live-subtitle: "Scans nearby cellular operators through the selected modem. This is not a Wi-Fi scan.";
+    in-out property <string> scan-impact: "A live scan may interrupt mobile data briefly. Review the impact before starting.";
+    in-out property <string> scan-start: "Scan cellular networks";
+    in-out property <string> scan-confirm: "Confirm scan";
+    in-out property <string> scan-confirm-impact: "Confirm: cellular data can disconnect briefly during this scan.";
+    in-out property <string> scan-auto: "Return to automatic network";
+    in-out property <string> scan-db-note: "Database lookup does not find networks available nearby.";
+    in-out property <string> scan-db-title: "Operator database lookup";
+    in-out property <string> scan-manual-note: "Manual registration to scan results is not supported by the current backend.";
+    in-out property <string> hotspot-source: "Internet source: mobile / Ethernet / active Wi-Fi / VPN / automatic";
+    in-out property <string> hotspot-source-note: "Source selection and VPN forwarding are not connected to the current hotspot backend.";
+    in-out property <string> hotspot-vpn-warning: "VPN fail-closed routing is not available yet. Do not treat VPN as a protected hotspot uplink.";
+    in-out property <string> hotspot-clients: "Connected clients";
+    in-out property <string> failover-priority-note: "Priority policy only • automatic health checks and switching are not active";
+    in-out property <string> modem-selection-unavailable: "Multiple modems detected • actions currently target the first modem";
+    in-out property <string> analyzer-networks-prompt: "Which network generations should be tested?";
+    in-out property <string> analyzer-net-3g: "3G";
+    in-out property <string> analyzer-net-4g: "4G LTE";
+    in-out property <string> analyzer-net-5g: "5G NR";
+    in-out property <string> analyzer-net-all: "All";
+    // Sidebar navigation
+    in-out property <string> nav-overview: "Overview";
+    in-out property <string> nav-network: "Network & Bands";
+    in-out property <string> nav-analyzer: "Band Analyzer";
+    in-out property <string> nav-operators: "Operators";
+    in-out property <string> nav-sim: "SIM, eSIM & APN";
+    in-out property <string> nav-messages: "Messages & USSD";
+    in-out property <string> nav-gps: "GPS & Cells";
+    in-out property <string> nav-doctor: "Modem Doctor";
+    in-out property <string> nav-hardware: "Hardware & FW";
+    in-out property <string> nav-hotspot: "Hotspot & Failover";
+    in-out property <string> nav-history: "History & Usage";
+    in-out property <string> nav-pro: "Pro Tools & AT";
+    in-out property <string> nav-settings: "Settings & About";
+
+    // Top bar & common actions
+    in-out property <string> btn-refresh: "Refresh";
+    in-out property <string> btn-basic: "Basic";
+    in-out property <string> btn-advanced: "Advanced";
+    in-out property <string> btn-expert: "Expert";
+    in-out property <string> btn-dark: "Dark";
+    in-out property <string> btn-light: "Light";
+    in-out property <string> btn-contrast: "Contrast";
+
+    // Overview
+    in-out property <string> lbl-rf-metrics: "RF Signal Metrics";
+    in-out property <string> lbl-cell-traffic: "Cell, Carrier Aggregation & Live Traffic";
+    in-out property <string> lbl-operator: "Operator";
+    in-out property <string> lbl-download: "Download";
+    in-out property <string> lbl-upload: "Upload";
+    in-out property <string> lbl-today: "Today";
+    in-out property <string> lbl-month: "This Month";
+    in-out property <string> lbl-band-lock: "Band Lock";
+    in-out property <string> btn-speed-test: "Speed Test";
+    in-out property <string> btn-reset-auto: "Reset to Auto";
+
+    // Network & Bands
+    in-out property <string> lbl-band-control: "Active & Persistent Band Control";
+    in-out property <string> lbl-supported-bands: "Supported Hardware Bands";
+    in-out property <string> btn-apply-bands: "Apply Selected Bands";
+    in-out property <string> btn-save-lock: "Save Persistent Lock";
+    in-out property <string> btn-keep: "Keep Selection";
+    in-out property <string> btn-rollback: "Rollback Now";
+
+    // Band Analyzer & Speed Test
+    in-out property <string> lbl-analyzer: "Band Analyzer & Carrier Aggregation";
+    in-out property <string> btn-scan-5m: "Radio-Only Scan (5m)";
+    in-out property <string> btn-scan-30s: "Quick Scan (30s)";
+    in-out property <string> btn-cancel: "Cancel";
+    in-out property <string> lbl-speedtest: "Interface-Bound Internet Speed Test";
+    in-out property <string> btn-run-speedtest: "Run Speed Test";
+
+    // Operators, SIM, Messages
+    in-out property <string> lbl-op-center: "Global Operator Information Center";
+    in-out property <string> btn-create-apn: "Create Recommended APN (with backup)";
+    in-out property <string> lbl-sim-sec: "SIM Security, Multi-SIM & eSIM";
+    in-out property <string> btn-unlock-pin: "Unlock PIN";
+    in-out property <string> lbl-apn-profiles: "Saved APN Profiles";
+    in-out property <string> btn-activate: "Activate";
+    in-out property <string> lbl-sms: "SMS Inbox & Compose";
+    in-out property <string> btn-send-sms: "Send SMS";
+    in-out property <string> lbl-ussd: "USSD Codes";
+    in-out property <string> btn-send-ussd: "Send USSD";
+
+    // GPS, Doctor, Hardware, Hotspot, History, Pro
+    in-out property <string> lbl-gps: "GPS / GNSS Manager";
+    in-out property <string> lbl-cells: "Cell & Tower Analyzer";
+    in-out property <string> btn-run-doctor: "Run Modem Doctor";
+    in-out property <string> btn-fix-safe: "Fix Safe Issues";
+    in-out property <string> lbl-netdiag: "Internet Diagnostics & FCC Lock";
+    in-out property <string> lbl-hw: "Hardware Detection & Compatibility DB";
+    in-out property <string> lbl-fw: "Firmware, LVFS & Backup";
+    in-out property <string> lbl-hotspot: "Mobile Hotspot (Wi-Fi Sharing)";
+    in-out property <string> lbl-failover: "Network Failover Policy";
+    in-out property <string> lbl-history: "Signal History & Data Usage (SQLite + JSON)";
+    in-out property <string> lbl-scanner: "Network Mode & 3GPP Scanner";
+    in-out property <string> lbl-antenna: "Antenna Positioning Assistant";
+    in-out property <string> lbl-at: "Safe AT Command Terminal";
+
+    // Settings
+    in-out property <string> lbl-settings: "Application Behavior, Tray & Accessibility";
+    in-out property <string> set-tray: "Close to System Tray";
+    in-out property <string> set-autostart: "Start with System (XDG Autostart)";
+    in-out property <string> set-bg: "Background Monitor Service";
+    in-out property <string> set-notif: "Desktop Notifications";
+    in-out property <string> set-motion: "Reduced Motion";
+    in-out property <string> set-remote: "Local Remote Web View (127.0.0.1:8787)";
+    in-out property <string> lbl-language: "Language / زبان";
+    in-out property <string> btn-save-prefs: "Save Preferences";
+    in-out property <string> btn-quit: "Quit ModemDeck";
+    in-out property <string> lbl-about: "About ModemDeck by MilMit";
+
+    // Subtitles, Placeholders & Empty States
+    in-out property <string> sub-rf: "Live modem and vendor telemetry";
+    in-out property <string> sub-band-ctrl: "Protected by 45-second crash-safe auto-rollback";
+    in-out property <string> sub-band-chips: "Click chips to select or deselect bands for custom lock";
+    in-out property <string> sub-analyzer: "Automated multi-band RF & performance benchmarking";
+    in-out property <string> sub-speedtest: "Binds directly to the modem WWAN interface";
+    in-out property <string> sub-gps: "Disabled by default to conserve battery";
+    in-out property <string> sub-doctor: "Automated service, SIM, FCC lock & routing audit";
+    in-out property <string> banner-rollback: "Band change pending confirmation — auto-rollback active. Keep new bands?";
+    in-out property <string> chart-title: "Live Signal Telemetry (24h)";
+    in-out property <string> lbl-country: "Country";
+    in-out property <string> lbl-confidence: "Confidence";
+    in-out property <string> lbl-ca: "Carrier Agg.";
+    in-out property <string> lbl-sim-lock: "SIM Lock";
+    in-out property <string> lbl-sim-slot: "Active Slot";
+    in-out property <string> ph-pin: "SIM PIN (4–8 digits)";
+    in-out property <string> ph-phone: "Phone number";
+    in-out property <string> ph-sms: "Message text";
+    in-out property <string> ph-antenna: "Position label (e.g. Window)";
+    in-out property <string> empty-bands-t: "No hardware bands reported";
+    in-out property <string> empty-bands-s: "Connect a modem to inspect supported LTE / 5G / 3G bands.";
+    in-out property <string> empty-apn-t: "No GSM APN profiles found";
+    in-out property <string> empty-apn-s: "Use Operators -> Create Recommended APN to generate one.";
+    in-out property <string> empty-sms-t: "No SMS messages loaded";
+    in-out property <string> empty-sms-s: "Select Refresh to load messages from the modem.";
+    in-out property <string> empty-doc-t: "Doctor audit not run yet";
+    in-out property <string> empty-doc-s: "Click Run Modem Doctor to inspect services, SIM, and connectivity.";
+    in-out property <string> btn-slot1: "Slot 1";
+    in-out property <string> btn-slot2: "Slot 2";
+    in-out property <string> btn-esim: "List eSIM";
+    in-out property <string> btn-gps-on: "Enable GPS";
+    in-out property <string> btn-gps-off: "Disable GPS";
+    in-out property <string> btn-gps-read: "Read Fix";
+    in-out property <string> btn-netdiag: "Run Domestic vs International Probes";
+    in-out property <string> btn-backup: "Export Settings Backup";
+    in-out property <string> btn-hw-rep: "Export Hardware Report";
+    in-out property <string> btn-hs-on: "Enable Hotspot";
+    in-out property <string> btn-hs-off: "Disable Hotspot";
+    in-out property <string> btn-wifi: "Prefer Wi-Fi";
+    in-out property <string> btn-eth: "Prefer Ethernet";
+    in-out property <string> btn-cell: "Prefer Cellular";
+    in-out property <string> btn-scan-net: "Scan Networks";
+    in-out property <string> btn-auto-reg: "Auto Register";
+    in-out property <string> btn-rec-pos: "Record Position";
+    in-out property <string> btn-run-at: "Run AT";
+    in-out property <string> lbl-at-write: "Allow State-Changing AT Commands";
+    in-out property <string> sub-at-write: "Dangerous NV/firmware flash commands remain permanently blocked.";
+    in-out property <string> sub-tray: "Keep monitoring in background when window is closed";
+    in-out property <string> sub-autostart: "Launch ModemDeck minimized on desktop login";
+    in-out property <string> sub-bg: "Enable persistent lock & telemetry watcher";
+    in-out property <string> sub-notif: "Alert on disconnects, band changes, and low signal";
+    in-out property <string> sub-motion: "Disable UI animations for accessibility";
+    in-out property <string> sub-remote: "Expose read-only local status page";
+    in-out property <string> btn-debug: "Debug";
+    in-out property <string> debug-title: "Live Debug & Error Console";
+    in-out property <string> debug-clear: "Clear";
+    in-out property <string> debug-copy: "Copy Log";
+    in-out property <string> status-please-wait: "Please wait…";
+}
