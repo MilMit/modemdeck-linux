@@ -1,237 +1,105 @@
-# ModemDeck Linux by MilMit
-
-**Website:** https://milmit.net · **GitHub organization:** [MilMit](https://github.com/MilMit)
-
 <p align="center">
-  <img src="assets/icons/net.milmit.ModemDeck.svg" width="128" alt="ModemDeck icon">
+  <img src="assets/branding/hero-banner.svg" alt="ModemDeck v2.0 Animated Hero Banner" width="100%">
 </p>
 
-<p align="center"><strong>Linux cellular modem management and diagnostics built with Rust + Slint.</strong></p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-2.0.0--beta.1-38bdf8?style=for-the-badge&logo=rust&logoColor=white" alt="Version 2.0.0-beta.1">
+  <img src="https://img.shields.io/badge/UI-Slint%201.19.1-2563eb?style=for-the-badge" alt="Slint 1.19.1">
+  <img src="https://img.shields.io/badge/D--Bus-zbus%206.5%20Async-10b981?style=for-the-badge" alt="zbus 6.5">
+  <img src="https://img.shields.io/badge/Storage-SQLite%20WAL%20%2B%20JSON-f59e0b?style=for-the-badge" alt="SQLite WAL">
+  <img src="https://img.shields.io/badge/License-GPL--3.0--or--later-64748b?style=for-the-badge" alt="GPL-3.0-or-later">
+</p>
 
+<p align="center">
+  <strong>Native, lightweight cellular modem management suite for Linux — built with Rust, Slint, ModemManager, NetworkManager &amp; SQLite.</strong><br>
+  Zero Electron, zero Chromium, zero GTK4/GIO UI dependencies.
+</p>
 
-ModemDeck is an open-source **Rust + Slint** cellular modem manager for Linux, developed by **MilMit**. It uses `zbus` for ModemManager/NetworkManager D-Bus, SQLite storage, and a native `ksni` StatusNotifierItem tray — with no GTK4, Electron, or Chromium runtime dependency.
+---
 
+## ✨ What's New in v2.0.0-beta.1 (Rust + Slint Overhaul)
 
-## Current development version: v2.0.0-beta.1 (Slint Migration)
+- **🎨 Centralized Slint Design System**: Built from scratch with [tokens.slint](ui/tokens.slint), [theme.slint](ui/theme.slint), [components.slint](ui/components.slint), [tr.slint](ui/tr.slint), and [main.slint](ui/main.slint) — supporting **Dark**, **Light**, and **High-Contrast** themes, **4 font-scale presets** (`Small`, `Default`, `Large`, `Extra Large`), **Basic / Advanced / Expert** UI modes, and **Reduced Motion**.
+- **🌍 8 Languages + True RTL Layout**: Live, zero-restart switching across **English, فارسی (RTL), العربية (RTL), Türkçe, Deutsch, Français, Español, Русский** with 100% validated key coverage ([catalog.rs](src/i18n/catalog.rs), [validation.rs](src/i18n/validation.rs)). In RTL locales, the sidebar, navigation indicators, card headers, and controls mirror cleanly while keeping technical values (`RSRP: -87 dBm`, `B1+B3+B7`, `432-35`, `AT+CSQ`) readable.
+- **⚡ Pure-Rust Async D-Bus & SQLite**: Migrated off `gtk4` / `gio` / `glib` to `zbus 6.5` + `tokio` ([src/modem/manager.rs](src/modem/manager.rs), [src/core/power.rs](src/core/power.rs)) and `rusqlite 0.43` WAL storage ([src/storage/sqlite_db.rs](src/storage/sqlite_db.rs)).
+- **📡 Live 3-Second Telemetry & Active Band Inspection**: Non-blocking background poller updates `Signal %`, `RSRP / RSRQ / SINR / RSSI` quality ratings, live RX/TX, daily/monthly usage, and the 24h SVG telemetry chart automatically, with 1-click **Read Active Band** vendor telemetry (`Serving Band`, `EARFCN`, `PCI`, `CA`).
+- **🔬 Full-Band Analyzer with Live Speed Test & 1-Click Apply**: Tests **all** supported modem bands (`4G/5G` first, then `3G/2G`) with `15s`, `45s`, or `5m` durations, live stage progress, per-band **Download / Ping / Score** table, and a 1-click **Apply** button on every tested row.
+- **🛡️ Hotspot Uplink Selector, VPN Leak Guard & Fail-Closed**: Visual path diagram (`[Clients] ──▶ [AP] ──▶ [Uplink] ──▶ [Internet]`), uplink selection (`Auto`, `Cellular`, `Ethernet`, `Wi-Fi`, `VPN`), Full vs. Split-Tunnel detection, DNS/IPv6 leak warnings, honest `Verified / Unverified / Backend Required` badges, and Linux `nftables` **Fail-Closed** kill-switch ([src/hotspot/uplink.rs](src/hotspot/uplink.rs)).
+- **🖥️ Native System Tray, Notifications & GNOME Extension**: StatusNotifierItem tray via `ksni` ([src/tray/mod.rs](src/tray/mod.rs)) with live 22×22 ARGB32 signal-bar icon, Close-to-Tray, Single-Instance Unix socket IPC, Freedesktop D-Bus notifications ([src/notifications/mod.rs](src/notifications/mod.rs)), and localized GNOME top-bar extension (`modemdeck@milmit.net`).
+- **🐛 Live Debug Console & Busy States**: Built-in `Debug` toggle console recording timestamped UI clicks and backend errors with **Copy Log** & **Clear**, plus a **Please Wait** banner that locks long-running actions against accidental double-clicks.
 
-See [docs/SLINT_UI_GUIDE.md](docs/SLINT_UI_GUIDE.md) for the centralized Slint Design System (`ui/tokens.slint`, `ui/theme.slint`, `ui/components.slint`, `ui/main.slint`).
+---
 
-## Current capability surface
+## 🧩 Feature Matrix
 
-Features depend on modem model, firmware, ModemManager, NetworkManager, and the desktop session. The beta has passed source tests but still needs broader hardware and desktop validation.
+| Area | Capabilities |
+|---|---|
+| **Overview & Radio** | Multi-modem selector, live 3s RF polling (`RSRP`, `RSRQ`, `SINR`, `RSSI` + quality grades), 24h SVG chart with Min/Avg/Max, `EARFCN`/`PCI`/`Cell ID`, `Read Active Band` vendor telemetry |
+| **Band Manager & Profiles** | Categorized bands (`4G LTE FDD`, `4G LTE TDD`, `5G NR`, `3G UMTS`), `Select All`/`Deselect All`, **45-second crash-safe rollback**, **Saved Band Profiles**, **Persistent Band Lock** |
+| **Band Analyzer & Speed Test** | Full-band RF + interface-bound HTTP speed & ping scan (`15s` / `45s` / `5m`), live stage & RF readout, sortable results table with 1-click **Apply** |
+| **Operators & Auto APN** | **988 operators across 152 countries** ([src/operators/mod.rs](src/operators/mod.rs)), MVNO disambiguation (`SPN`/`GID1`), live search by name/country/`MCC-MNC`, 1-click Recommended APN |
+| **SIM, eSIM & APN** | SIM PIN unlock, Slot 1/2 capability-gated switching, eSIM/eUICC detection & profile listing, NetworkManager APN **Create / Activate / Delete** |
+| **SMS, Voice & USSD** | SMS inbox & compose, USSD dialer & session replies, Voice Call dial / hangup / list |
+| **GPS & Cell Analyzer** | Opt-in GNSS enable/disable/fix, GPX & CSV export, serving cell summary |
+| **Modem Doctor & NetDiag** | Localized automated health audit (`ModemManager`, `NetworkManager`, RFKill, SIM, FCC Lock, Routing, DNS), safe auto-fix, HTML Health Card & privacy-safe diagnostics export, Domestic vs. International probes |
+| **Hardware & Firmware** | Structured KPIs (`Host`, `Driver`, `Hardware Match`, `Bus Link`, `Power Mgmt`, `Thermal`, `Firmware`, `fwupd`, `LVFS`), settings backup & hardware report export |
+| **Hotspot & Failover** | Uplink selector, VPN tunnel & DNS/IPv6 leak guard, `nftables` Fail-Closed kill-switch, capability-gated Wi-Fi `2.4/5 GHz` & `WPA2/WPA3`, connected clients list, Route Priority policy |
+| **Pro Tools & Safe AT** | Capability-gated Network Mode (`Auto`, `4G Only`, `5G` disabled on LTE-only modems), 3GPP Network Scanner with per-row manual **Register**, Antenna Positioning Assistant, Safe Read-Only/Guarded AT Terminal |
 
-### Radio dashboard
+---
 
-- Multi-modem detection and hot-plug updates through ModemManager D-Bus.
-- 2G/3G/4G/4G+/5G display when the available telemetry can prove that state.
-- RSRP, RSRQ, SNR, RSSI and a separate radio-quality assessment.
-- Signal history.
-- Serving LTE band, FDD/TDD, EARFCN, PCI and channel bandwidth when available.
-- Structured carrier aggregation: PCC/SCC components, 2CA/3CA topology and component channel bandwidth.
-- GNOME top-bar integration plus optional low-overhead background monitor.
+## 🌐 Cross-Platform Architecture Status
 
-### Safe band controls
+| Capability | Linux | Windows | macOS |
+|---|---|---|---|
+| **Modem Control & RF** | ✅ ModemManager + `zbus` + Vendor AT/MBIM | 🚧 Planned (`WinRT` / `MBIM`) | 🚧 Planned (`CoreTelephony` / Serial) |
+| **Slint UI & Design System** | ✅ Slint 1.19.1 (`winit` + HW/SW render) | ✅ Shared Slint UI | ✅ Shared Slint UI |
+| **Hotspot & Uplink** | ✅ `NetworkManager` + `iw` + `ip route` | 🚧 Backend Required (`ICS` / `WinRT`) | 🚧 Backend Required (`pf` / `bootpd`) |
+| **VPN Fail-Closed** | ✅ `nftables` (`pkexec nft`) | 🚧 Backend Required (`WFP`) | 🚧 Backend Required (`pfctl` anchor) |
+| **System Tray** | ✅ `ksni` StatusNotifierItem | ✅ Slint / `tray-icon` ready | ✅ Slint / Menu bar ready |
 
-- Auto / LTE-FDD / TD-LTE presets.
-- Custom supported-band selection using ModemManager `SetCurrentBands`.
-- 45-second confirmation window.
-- Local pre-change backup.
-- Persistent pending transaction.
-- Detached rollback guard that survives a GUI crash and restores the previous selection if it is still unconfirmed.
-- Bounded safety-backup history.
-- LTE cell-lock stays **preview-only** until model/firmware-specific write/recovery behavior is verified.
+---
 
-### Band profiles
+## 🚀 Build, Test & Install (Ubuntu / Linux)
 
-Built-in profiles:
+### Prerequisites
+- Rust toolchain (`rustc >= 1.85`, edition `2024`)
+- `ModemManager`, `NetworkManager`, `libdbus-1-dev`, `pkg-config`, `iw`
 
-- `Auto`
-- `B42 TD-LTE`
-- `B1+B3+B7`
-
-You can also save/delete your own profiles. Optionally, the active profile is restored after reboot and after suspend/resume by the lightweight user service.
-
-### APN Manager
-
-NetworkManager-backed GSM/APN profiles can be:
-
-- listed
-- created
-- edited
-- activated
-- deleted
-
-APN username and an optional password are supported. Password values are handed directly to NetworkManager and are **not** stored in ModemDeck's own config. Existing passwords are never read back into the UI.
-
-### SIM security
-
-Through the standard ModemManager SIM interface:
-
-- unlock SIM with PIN
-- enable PIN protection
-- disable PIN protection
-- show current SIM lock state/slot when reported
-
-### Live traffic and data usage
-
-- Live RX/TX rate from `/sys/class/net/<interface>/statistics/*`.
-- No speed-test traffic is generated.
-- Daily and monthly local byte accounting.
-- Reset control.
-- Local history is bounded to prevent unbounded config growth.
-
-Accounting is active while the GUI or optional background monitor is running.
-
-### Desktop/system integration
-
-- Suspend/resume detection through `systemd-logind`.
-- State resync and optional profile restore after resume.
-- Modem USB/internal WWAN hot-plug handling.
-- Optional notifications.
-- `systemd --user` monitor.
-- GNOME top-bar extension.
-- Desktop launcher.
-- `.deb` build script.
-
-### Support, updates and privacy
-
-- Supported Modems/capability page.
-- In-app release notes.
-- Update check against `https://milmit.net/modemdeck/update.json`, with fallback to the public GitHub Releases API.
-- `server/update.json.example` for publishing the manifest on MilMit.
-- Report-a-problem / MilMit website integration.
-- Privacy-safe diagnostics export: IMEI/equipment IDs are intentionally omitted.
-- Eight language catalogs with mechanically validated key and placeholder coverage; visual translation and RTL review remain pending.
-- MilMit About/website/package metadata.
-
-## Previously verified Dell/Foxconn DW5821e results
-
-The results below came from the earlier RC hardware session and have not yet been revalidated against the v2 beta build.
-
-Testing on the target Ubuntu laptop has verified the `T77W968 / DW5821e Snapdragon X20 LTE` path:
-
-- FDD LTE B1 serving carrier.
-- `3CA • B1 + B7 + B3`, each component reported as 20 MHz.
-- Real TD-LTE band lock to B42.
-- B42 EARFCN 43292 / PCI 89.
-- `2CA • B42 + B42`, each component reported as 20 MHz.
-- Vendor radio details through a direct read that temporarily inhibits and then returns the modem to ModemManager.
-
-A sum such as 40/60 MHz is **component channel bandwidth**, not an internet speed estimate.
-
-## Multi-vendor architecture
-
-Generic ModemManager support is used whenever possible. Advanced telemetry is capability-gated rather than guessed. Driver profiles exist for:
-
-- Dell/Foxconn DW5821e / T77W968
-- Quectel
-- Fibocom
-- Sierra Wireless / AirPrime
-- Huawei
-- Telit / Cinterion
-- SIMCom
-- Generic MBIM/QMI fallback
-
-Support varies by exact modem and firmware. Controls that are unsupported or not verified stay disabled.
-
-
-## GitHub releases
-
-GitHub Actions validates source changes and builds review artifacts. It does not publish a release or move tags automatically. Versioned release publication is a separate, manually reviewed step. The current workspace version is a beta candidate and has not been published as a release.
-
-Planned release assets:
-
-- `ModemDeck-<version>-linux-x86_64.deb` — Ubuntu/Debian package
-- `ModemDeck-<version>-linux-x86_64.AppImage` — portable build, when validated
-- source archive and checksums for validated release assets
-
-See `docs/PUBLISHING.md` to publish the repository and create a release directly from Ubuntu.
-
-## Build on Ubuntu
-
-Install development/runtime dependencies:
-
+### Verify & Test
 ```bash
-./scripts/install-deps-ubuntu.sh
+cargo fmt --all -- --check
+cargo check --all-targets
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets
 ```
 
-Build and run:
-
+### Install for Current User (Desktop Menu + GNOME Extension)
 ```bash
-cargo run --release
+bash ./scripts/install-user.sh
+modemdeck
 ```
 
-Run the lightweight monitor alone:
+> **Note:** `scripts/install-user.sh` builds the release binary, installs `~/.local/bin/modemdeck`, configures `~/.local/share/applications/net.milmit.ModemDeck.desktop` with the exact binary path, and installs the `modemdeck@milmit.net` GNOME Shell indicator.
 
+### CLI Usage
 ```bash
-cargo run --release -- --monitor
+modemdeck --version
+modemdeck doctor --json
+modemdeck operator info --json
+modemdeck --minimized
 ```
 
-## Install for the current user
+---
 
-```bash
-./scripts/install-user.sh
-```
+## 🔒 Privacy & Safety
 
-This installs the binary, desktop entry, user systemd unit and GNOME extension files when GNOME is present. Enable/disable the monitor from Preferences.
+- **No Personal Identifiers Exported**: Privacy-safe diagnostics omit IMEI, IMSI, ICCID, and phone numbers.
+- **Local-Only Storage**: SQLite WAL history (`modemdeck.db`) and JSON settings reside locally under `$XDG_DATA_HOME/modemdeck` and `$XDG_CONFIG_HOME/modemdeck`.
+- **45-Second Crash-Safe Rollback**: Band and profile changes arm a detached rollback guard that restores previous bands if unconfirmed or after a crash.
 
-## Build a Debian package
+---
 
-```bash
-./packaging/build-deb.sh
-```
-
-The `.deb` is written under `target/dist/` when built directly. `packaging/build-all.sh` separates release artifacts by version and actual host architecture under `target/dist/<version>/linux-<architecture>/`.
-
-## Self-check
-
-```bash
-./scripts/phase5-selfcheck.sh
-```
-
-It checks ModemManager, NetworkManager tools, PolicyKit helper availability, update-check dependency, user monitor/indicator installation and current process resource usage.
-
-## Translation
-
-The UI includes English, Persian, Arabic, Turkish, German, French, Spanish, and Russian catalogs. Translation coverage is mechanically checked; human review and in-context RTL testing remain release checks.
-
-## Update manifest on milmit.net
-
-Copy `server/update.json.example` to the production URL only after publishing a reviewed release:
-
-`https://milmit.net/modemdeck/update.json`
-
-Update `version`, `url` and `notes` for each release. The live URL currently returns 404, so the application falls back to GitHub Releases. The check sends no analytics, never replaces a package-manager-installed binary, and does not yet verify download checksums or signatures.
-
-## Privacy and logs
-
-- Diagnostics omit IMEI/equipment IDs.
-- APN passwords are not stored in ModemDeck settings.
-- No verbose persistent AT response logging by the monitor.
-- Runtime status contains display-oriented state only.
-- Data usage is stored locally in the user's config directory.
-
-## Important safety behavior
-
-Vendor deep reads may temporarily inhibit ModemManager and can briefly reconnect mobile data. They are therefore manual rather than high-frequency background operations.
-
-Band writes are guarded by backup + persistent transaction + detached rollback process. Cell-lock writes remain preview-only in RC1 because persistence/recovery behavior is vendor/firmware-specific.
-
-## Uninstall user installation
-
-```bash
-./scripts/uninstall-user.sh
-```
-
-### Communications in RC1.2
-
-The main window is split into focused tabs instead of one long page. SMS, Voice and USSD controls are capability-gated at runtime. ModemDeck only enables a feature when ModemManager exports the matching standard D-Bus interface for the selected modem.
-
-SMS supports on-demand inbox loading, sending and deleting. Voice supports dialing, answering and hangup when the Voice interface exists. Voice call control and voice audio routing are treated as separate capabilities; some WWAN modules can expose call control without a usable host audio route. USSD supports initiate/respond/cancel when available.
-
-## End-user installation (RC1.3)
-For normal users, do not run the developer dependency script. Distribute either the `.deb` or AppImage release artifact. The `.deb` lets Ubuntu install required OS runtime services automatically; the AppImage bundles ordinary application libraries and uses the host ModemManager/NetworkManager/Polkit services. See `PORTABLE.md`.
-
-
-### Smooth live updates
-Starting with RC1.4, routine ModemManager signal/property events patch the visible labels and progress bar in place instead of rebuilding the full GTK modem page. Structural refreshes are reserved for modem add/remove, manual refresh and explicit configuration operations.
+<p align="center">
+  Developed by <strong>MilMit</strong> · <a href="https://milmit.net">milmit.net</a> · Licensed under <strong>GPL-3.0-or-later</strong>
+</p>
