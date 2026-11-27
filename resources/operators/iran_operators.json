@@ -1,0 +1,372 @@
+{
+  "schema_version": 1,
+  "source": "ModemDeck Curated Iran Operator Registry",
+  "last_updated": "2026-11-27",
+  "operators": [
+    {
+      "id": "ir-irancell",
+      "name": "MTN Irancell",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "35",
+      "spn_patterns": ["irancell", "mtn irancell", "irancell-td"],
+      "gid1_patterns": [],
+      "is_mvno": false,
+      "host_network": "",
+      "apns": [
+        {
+          "name": "Irancell Mobile Internet",
+          "apn": "mtnirancell",
+          "profile_type": "mobile",
+          "ip_type": "ipv4v6",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        },
+        {
+          "name": "Irancell TD-LTE",
+          "apn": "irancell-td",
+          "profile_type": "td-lte",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": false
+        }
+      ],
+      "website": "https://irancell.ir",
+      "support_url": "https://irancell.ir/p/10002",
+      "account_url": "https://my.irancell.ir",
+      "package_url": "https://irancell.ir/o/1001",
+      "ussd_codes": [
+        { "code": "*555#", "description": "Irancell main USSD menu" },
+        { "code": "*141*1#", "description": "Check balance & remaining data" },
+        { "code": "*555*5#", "description": "Internet packages" }
+      ],
+      "known_bands": ["B1", "B3", "B7", "B42", "n78"],
+      "technologies": ["2G", "3G", "4G LTE", "TD-LTE", "5G NR"],
+      "active": true
+    },
+    {
+      "id": "ir-mci",
+      "name": "MCI (Hamrah-e Aval)",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "11",
+      "spn_patterns": ["mci", "ir-mci", "hamrah", "ir-tci"],
+      "gid1_patterns": [],
+      "is_mvno": false,
+      "host_network": "",
+      "apns": [
+        {
+          "name": "MCI Mobile Internet",
+          "apn": "mcinet",
+          "profile_type": "mobile",
+          "ip_type": "ipv4v6",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://mci.ir",
+      "support_url": "https://mci.ir/support",
+      "account_url": "https://my.mci.ir",
+      "package_url": "https://mci.ir/notrino-plans",
+      "ussd_codes": [
+        { "code": "*10#", "description": "MCI main service menu" },
+        { "code": "*100#", "description": "Internet packages" },
+        { "code": "*140*11#", "description": "Balance inquiry" }
+      ],
+      "known_bands": ["B1", "B3", "B7", "B8", "n78"],
+      "technologies": ["2G", "3G", "4G LTE", "5G NR"],
+      "active": true
+    },
+    {
+      "id": "ir-rightel",
+      "name": "RighTel",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "20",
+      "spn_patterns": ["rightel", "ir-rightel"],
+      "gid1_patterns": [],
+      "is_mvno": false,
+      "host_network": "",
+      "apns": [
+        {
+          "name": "RighTel Internet",
+          "apn": "RighTel",
+          "profile_type": "mobile",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://rightel.ir",
+      "support_url": "https://rightel.ir/support",
+      "account_url": "https://my.rightel.ir",
+      "package_url": "https://rightel.ir/internet-packages",
+      "ussd_codes": [
+        { "code": "*140#", "description": "Balance & remaining data" },
+        { "code": "*142#", "description": "Internet packages" }
+      ],
+      "known_bands": ["B1", "B3", "B8"],
+      "technologies": ["3G", "4G LTE"],
+      "active": true
+    },
+    {
+      "id": "ir-samantel",
+      "name": "SamanTel",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "12",
+      "spn_patterns": ["samantel", "saman"],
+      "gid1_patterns": ["5341"],
+      "is_mvno": true,
+      "host_network": "MCI / RighTel",
+      "apns": [
+        {
+          "name": "SamanTel Internet",
+          "apn": "samantel.ir",
+          "profile_type": "mobile",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://samantel.ir",
+      "support_url": "https://samantel.ir/support",
+      "account_url": "https://my.samantel.ir",
+      "package_url": "https://samantel.ir/packages",
+      "ussd_codes": [
+        { "code": "*160#", "description": "SamanTel service menu" }
+      ],
+      "known_bands": ["B1", "B3", "B7", "B8"],
+      "technologies": ["3G", "4G LTE"],
+      "active": true
+    },
+    {
+      "id": "ir-shatel",
+      "name": "Shatel Mobile",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "08",
+      "spn_patterns": ["shatel", "shatel mobile"],
+      "gid1_patterns": ["5348"],
+      "is_mvno": true,
+      "host_network": "Irancell / MCI / RighTel",
+      "apns": [
+        {
+          "name": "Shatel Mobile Internet",
+          "apn": "shatelmobile",
+          "profile_type": "mobile",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://shatelmobile.ir",
+      "support_url": "https://shatelmobile.ir/support",
+      "account_url": "https://my.shatelmobile.ir",
+      "package_url": "https://shatelmobile.ir/packages",
+      "ussd_codes": [
+        { "code": "*1#", "description": "Shatel Mobile service menu" }
+      ],
+      "known_bands": ["B1", "B3", "B7", "B8"],
+      "technologies": ["3G", "4G LTE"],
+      "active": true
+    },
+    {
+      "id": "ir-mobinnet",
+      "name": "Mobinnet",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "44",
+      "spn_patterns": ["mobinnet"],
+      "gid1_patterns": [],
+      "is_mvno": false,
+      "host_network": "",
+      "apns": [
+        {
+          "name": "Mobinnet TD-LTE / FWA",
+          "apn": "mobinnet",
+          "profile_type": "fwa",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://mobinnet.ir",
+      "support_url": "https://mobinnet.ir/support",
+      "account_url": "https://my.mobinnet.ir",
+      "package_url": "https://mobinnet.ir/plans",
+      "ussd_codes": [],
+      "known_bands": ["B42", "B43"],
+      "technologies": ["TD-LTE", "5G FWA"],
+      "active": true
+    },
+    {
+      "id": "ir-hiweb",
+      "name": "HiWEB",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "14",
+      "spn_patterns": ["hiweb"],
+      "gid1_patterns": [],
+      "is_mvno": false,
+      "host_network": "",
+      "apns": [
+        {
+          "name": "HiWEB FWA",
+          "apn": "hiweb",
+          "profile_type": "fwa",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://hiweb.ir",
+      "support_url": "https://hiweb.ir/support",
+      "account_url": "https://panel.hiweb.ir",
+      "package_url": "https://hiweb.ir",
+      "ussd_codes": [],
+      "known_bands": ["B42", "B43"],
+      "technologies": ["TD-LTE"],
+      "active": true
+    },
+    {
+      "id": "ir-asiatech",
+      "name": "Asiatech",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "19",
+      "spn_patterns": ["asiatech"],
+      "gid1_patterns": [],
+      "is_mvno": false,
+      "host_network": "",
+      "apns": [
+        {
+          "name": "Asiatech TD-LTE",
+          "apn": "asiatech",
+          "profile_type": "fwa",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://asiatech.ir",
+      "support_url": "https://asiatech.ir/support",
+      "account_url": "https://my.asiatech.ir",
+      "package_url": "https://asiatech.ir",
+      "ussd_codes": [],
+      "known_bands": ["B42", "B43"],
+      "technologies": ["TD-LTE"],
+      "active": true
+    },
+    {
+      "id": "ir-aptel",
+      "name": "Aptel",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "32",
+      "spn_patterns": ["aptel"],
+      "gid1_patterns": [],
+      "is_mvno": true,
+      "host_network": "MCI",
+      "apns": [
+        {
+          "name": "Aptel Internet",
+          "apn": "aptel",
+          "profile_type": "mobile",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://aptel.ir",
+      "support_url": "https://aptel.ir",
+      "account_url": "https://my.aptel.ir",
+      "package_url": "https://aptel.ir",
+      "ussd_codes": [],
+      "known_bands": ["B1", "B3", "B7"],
+      "technologies": ["3G", "4G LTE"],
+      "active": true
+    },
+    {
+      "id": "ir-anarestan",
+      "name": "Anarestan",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "11",
+      "spn_patterns": ["anarestan"],
+      "gid1_patterns": ["414e"],
+      "is_mvno": true,
+      "host_network": "MCI",
+      "apns": [
+        {
+          "name": "Anarestan Internet",
+          "apn": "mcinet",
+          "profile_type": "mobile",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://anarestan.ir",
+      "support_url": "https://anarestan.ir",
+      "account_url": "https://anarestan.ir",
+      "package_url": "https://anarestan.ir",
+      "ussd_codes": [],
+      "known_bands": ["B1", "B3", "B7", "B8"],
+      "technologies": ["3G", "4G LTE"],
+      "active": true
+    },
+    {
+      "id": "ir-lotustel",
+      "name": "LotusTel",
+      "country": "Iran",
+      "country_code": "IR",
+      "mcc": "432",
+      "mnc": "49",
+      "spn_patterns": ["lotustel", "lotus"],
+      "gid1_patterns": [],
+      "is_mvno": true,
+      "host_network": "RighTel / MCI",
+      "apns": [
+        {
+          "name": "LotusTel Internet",
+          "apn": "lotustel",
+          "profile_type": "mobile",
+          "ip_type": "ipv4",
+          "auth": "none",
+          "username": "",
+          "recommended": true
+        }
+      ],
+      "website": "https://lotustel.ir",
+      "support_url": "https://lotustel.ir",
+      "account_url": "https://lotustel.ir",
+      "package_url": "https://lotustel.ir",
+      "ussd_codes": [],
+      "known_bands": ["B1", "B3", "B8"],
+      "technologies": ["3G", "4G LTE"],
+      "active": true
+    }
+  ]
+}

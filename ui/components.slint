@@ -1,0 +1,684 @@
+import { Theme } from "theme.slint";
+import { Tokens } from "tokens.slint";
+
+export component ModernCard inherits Rectangle {
+    in property <string> title: "";
+    in property <string> subtitle: "";
+    in property <string> glyph: "";
+    vertical-stretch: 0;
+    background: Theme.card-bg;
+    border-radius: Tokens.radius-lg;
+    border-width: 1px;
+    border-color: card_touch.has-hover ? Theme.accent.with-alpha(0.32) : Theme.border;
+    drop-shadow-blur: card_touch.has-hover ? 20px : 14px;
+    drop-shadow-offset-y: 3px;
+    drop-shadow-color: #0000001c;
+    animate border-color { duration: Theme.anim-fast; easing: ease-out; }
+    animate drop-shadow-blur { duration: Theme.anim-normal; easing: ease-out; }
+
+    card_touch := TouchArea {
+        mouse-cursor: default;
+    }
+
+    VerticalLayout {
+        padding: Tokens.space-lg;
+        spacing: Tokens.space-md;
+        alignment: start;
+
+        if root.title != "": HorizontalLayout {
+            spacing: Tokens.space-sm;
+            alignment: start;
+            if !Theme.is-rtl && root.glyph != "": Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: Tokens.radius-xs;
+                background: Theme.accent.with-alpha(0.14);
+                border-width: 1px;
+                border-color: Theme.accent.with-alpha(0.32);
+                Text {
+                    text: root.glyph;
+                    color: Theme.accent;
+                    font-size: Tokens.font-md * Theme.font-scale;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: root.title;
+                    color: Theme.text;
+                    font-size: Tokens.font-md * Theme.font-scale;
+                    font-weight: 700;
+                    horizontal-alignment: Theme.is-rtl ? right : left;
+                }
+                if root.subtitle != "": Text {
+                    text: root.subtitle;
+                    color: Theme.text-muted;
+                    font-size: Tokens.font-xs * Theme.font-scale;
+                    horizontal-alignment: Theme.is-rtl ? right : left;
+                }
+            }
+            if Theme.is-rtl && root.glyph != "": Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: Tokens.radius-xs;
+                background: Theme.accent.with-alpha(0.14);
+                border-width: 1px;
+                border-color: Theme.accent.with-alpha(0.32);
+                Text {
+                    text: root.glyph;
+                    color: Theme.accent;
+                    font-size: Tokens.font-md * Theme.font-scale;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+        @children
+    }
+}
+
+export component HeroCard inherits Rectangle {
+    vertical-stretch: 0;
+    border-radius: Tokens.radius-lg;
+    border-width: 1px;
+    border-color: Theme.accent.with-alpha(0.35);
+    background: @linear-gradient(135deg, Theme.card-bg 0%, Theme.accent.with-alpha(0.10) 100%);
+    drop-shadow-blur: 18px;
+    drop-shadow-offset-y: 4px;
+    drop-shadow-color: #00000024;
+
+    VerticalLayout {
+        padding: Tokens.space-lg;
+        spacing: Tokens.space-md;
+        alignment: start;
+        @children
+    }
+}
+
+export component KpiTile inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> caption: "";
+    in property <color> accent: Theme.accent;
+    vertical-stretch: 0;
+    background: Theme.input-bg;
+    border-radius: Tokens.radius-md;
+    border-width: 1px;
+    border-color: Theme.border-subtle;
+    min-width: 120px;
+
+    VerticalLayout {
+        padding: Tokens.space-md;
+        spacing: 5px;
+        alignment: start;
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: start;
+            if !Theme.is-rtl: Rectangle {
+                width: 4px;
+                height: 13px;
+                border-radius: 2px;
+                background: root.accent;
+                y: (parent.height - self.height) / 2;
+            }
+            Text {
+                text: root.label;
+                color: Theme.text-muted;
+                font-size: Tokens.font-xs * Theme.font-scale;
+                font-weight: 700;
+                horizontal-stretch: 1;
+                horizontal-alignment: Theme.is-rtl ? right : left;
+            }
+            if Theme.is-rtl: Rectangle {
+                width: 4px;
+                height: 13px;
+                border-radius: 2px;
+                background: root.accent;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+        Text {
+            text: root.value;
+            color: Theme.text;
+            font-size: Tokens.font-lg * Theme.font-scale;
+            font-weight: 800;
+            overflow: elide;
+            horizontal-alignment: Theme.is-rtl ? right : left;
+        }
+        if root.caption != "": Text {
+            text: root.caption;
+            color: root.accent;
+            font-size: Tokens.font-xs * Theme.font-scale;
+            font-weight: 600;
+            overflow: elide;
+            horizontal-alignment: Theme.is-rtl ? right : left;
+        }
+    }
+}
+
+export component StatusPill inherits Rectangle {
+    in property <string> text;
+    in property <color> badge-color: Theme.accent;
+    in property <bool> pulse: true;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    background: badge-color.with-alpha(0.14);
+    border-radius: Tokens.radius-pill;
+    border-width: 1px;
+    border-color: badge-color.with-alpha(0.45);
+    height: 30px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 7px;
+        alignment: center;
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.badge-color;
+            y: (parent.height - self.height) / 2;
+            opacity: (root.pulse && !Theme.reduced-motion) ? (0.45 + 0.55 * Math.abs(Math.sin(180deg * (animation-tick() / 1.6s)))) : 1.0;
+        }
+        Text {
+            text: root.text;
+            color: root.badge-color;
+            font-size: Tokens.font-xs * Theme.font-scale;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component ModernButton inherits Rectangle {
+    in property <string> label;
+    in property <string> glyph: "";
+    in property <bool> primary: false;
+    in property <bool> danger: false;
+    in property <bool> ghost: false;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    vertical-stretch: 0;
+    height: 38px;
+    border-radius: Tokens.radius-sm;
+    border-width: ghost ? 0px : 1px;
+    border-color: !enabled ? Theme.border-subtle :
+        danger ? Theme.error.with-alpha(0.9) :
+        primary ? Theme.primary.with-alpha(0.95) : Theme.border;
+    background: !enabled ? Theme.chip-bg.with-alpha(0.45) :
+        touch.pressed ? (
+            danger ? Theme.error.darker(0.18) :
+            primary ? Theme.secondary : Theme.hover
+        ) :
+        touch.has-hover ? (
+            danger ? Theme.error.darker(0.08) :
+            primary ? Theme.primary.darker(0.08) :
+            ghost ? Theme.hover.with-alpha(0.65) : Theme.hover
+        ) : (
+            danger ? Theme.error :
+            primary ? Theme.primary :
+            ghost ? transparent : Theme.chip-bg
+        );
+    opacity: enabled ? 1.0 : 0.45;
+    drop-shadow-blur: (primary && enabled && !touch.pressed) ? 8px : 0px;
+    drop-shadow-color: Theme.primary.with-alpha(0.28);
+    animate background { duration: Theme.anim-fast; }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 7px;
+        alignment: center;
+        if root.glyph != "": Text {
+            text: root.glyph;
+            color: (primary || danger) ? #ffffff : Theme.accent;
+            font-size: Tokens.font-sm * Theme.font-scale;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.label;
+            color: (primary || danger) ? #ffffff : Theme.text;
+            font-size: Tokens.font-sm * Theme.font-scale;
+            font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component PillChip inherits Rectangle {
+    in property <string> label;
+    in property <bool> active: false;
+    callback clicked();
+
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    height: 33px;
+    border-radius: Tokens.radius-pill;
+    border-width: 1px;
+    border-color: active ? Theme.accent :
+        touch.has-hover ? Theme.accent.with-alpha(0.55) : Theme.border;
+    background: active ? Theme.accent.with-alpha(0.18) :
+        touch.has-hover ? Theme.hover : Theme.input-bg;
+    animate background { duration: Theme.anim-fast; }
+    animate border-color { duration: Theme.anim-fast; }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 6px;
+        alignment: center;
+        if active: Rectangle {
+            width: 7px;
+            height: 7px;
+            border-radius: 4px;
+            background: Theme.accent;
+            y: (parent.height - self.height) / 2;
+        }
+        Text {
+            text: root.label;
+            color: active ? Theme.accent : Theme.text;
+            font-size: Tokens.font-xs * Theme.font-scale;
+            font-weight: active ? 700 : 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ToggleSwitch inherits Rectangle {
+    in property <string> label;
+    in property <string> description: "";
+    in-out property <bool> checked: false;
+    callback toggled(bool);
+
+    vertical-stretch: 0;
+    height: description == "" ? 44px : 58px;
+    border-radius: Tokens.radius-sm;
+    background: touch.has-hover ? Theme.hover.with-alpha(0.45) : Theme.input-bg;
+    border-width: 1px;
+    border-color: Theme.border-subtle;
+    animate background { duration: Theme.anim-fast; }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: Tokens.space-md;
+        if Theme.is-rtl: Rectangle {
+            width: 44px;
+            height: 24px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: root.checked ? Theme.primary : Theme.border;
+            background: root.checked ? Theme.primary : Theme.chip-bg;
+            animate background { duration: Theme.anim-fast; }
+
+            Rectangle {
+                width: 18px;
+                height: 18px;
+                y: 2px;
+                x: root.checked ? 23px : 3px;
+                border-radius: 9px;
+                background: #ffffff;
+                animate x { duration: Theme.anim-fast; }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: root.label;
+                color: Theme.text;
+                font-size: Tokens.font-sm * Theme.font-scale;
+                font-weight: 600;
+                horizontal-alignment: Theme.is-rtl ? right : left;
+            }
+            if root.description != "": Text {
+                text: root.description;
+                color: Theme.text-muted;
+                font-size: Tokens.font-xs * Theme.font-scale;
+                horizontal-alignment: Theme.is-rtl ? right : left;
+            }
+        }
+        if !Theme.is-rtl: Rectangle {
+            width: 44px;
+            height: 24px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: root.checked ? Theme.primary : Theme.border;
+            background: root.checked ? Theme.primary : Theme.chip-bg;
+            animate background { duration: Theme.anim-fast; }
+
+            Rectangle {
+                width: 18px;
+                height: 18px;
+                y: 2px;
+                x: root.checked ? 23px : 3px;
+                border-radius: 9px;
+                background: #ffffff;
+                animate x { duration: Theme.anim-fast; }
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+export component ModernTextField inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder: "";
+    in property <InputType> input-type: InputType.text;
+    vertical-stretch: 0;
+    height: 40px;
+    border-radius: Tokens.radius-sm;
+    border-width: 1.5px;
+    border-color: field.has-focus ? Theme.primary : Theme.border;
+    background: Theme.input-bg;
+    animate border-color { duration: Theme.anim-fast; }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: stretch;
+        Rectangle {
+            horizontal-stretch: 1;
+            clip: true;
+            if root.text == "" && root.placeholder != "": Text {
+                text: root.placeholder;
+                color: Theme.text-muted.with-alpha(0.75);
+                font-size: Tokens.font-sm * Theme.font-scale;
+                vertical-alignment: center;
+                horizontal-alignment: Theme.is-rtl ? right : left;
+                width: 100%;
+                height: 100%;
+            }
+            field := TextInput {
+                text <=> root.text;
+                input-type: root.input-type;
+                color: Theme.text;
+                font-size: Tokens.font-sm * Theme.font-scale;
+                vertical-alignment: center;
+                width: 100%;
+                height: 100%;
+            }
+        }
+    }
+}
+
+export component ModernProgressBar inherits Rectangle {
+    in property <int> percent: 0;
+    in property <color> bar-color: Theme.accent;
+    vertical-stretch: 0;
+    height: 10px;
+    border-radius: 5px;
+    background: Theme.chip-bg;
+
+    Rectangle {
+        x: 0;
+        y: 0;
+        height: parent.height;
+        width: parent.width * Math.clamp(root.percent, 0, 100) / 100;
+        border-radius: 5px;
+        background: @linear-gradient(90deg, root.bar-color 0%, root.bar-color.brighter(0.2) 100%);
+        animate width { duration: Theme.anim-normal; }
+    }
+}
+
+export component CellularBars inherits HorizontalLayout {
+    in property <int> percent: 0;
+    spacing: 3px;
+    height: 22px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    alignment: end;
+
+    property <color> active-color:
+        percent >= 70 ? Theme.success :
+        percent >= 40 ? Theme.accent :
+        percent >= 20 ? Theme.warning : Theme.error;
+
+    for thresh[idx] in [10, 30, 55, 75, 90]: Rectangle {
+        width: 4px;
+        height: 6px + idx * 4px;
+        y: parent.height - self.height;
+        border-radius: 2px;
+        background: root.percent >= thresh ? root.active-color : Theme.chip-bg;
+        animate background { duration: Theme.anim-normal; easing: ease-out; }
+    }
+}
+
+export component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <string> glyph;
+    in property <bool> active: false;
+    in property <bool> collapsed: false;
+    callback clicked();
+
+    vertical-stretch: 0;
+    height: 40px;
+    border-radius: Tokens.radius-sm;
+    background: active ? Theme.accent.with-alpha(0.14) :
+        touch.has-hover ? Theme.hover.with-alpha(0.7) : transparent;
+    border-width: active ? 1px : 0px;
+    border-color: Theme.accent.with-alpha(0.32);
+    animate background { duration: Theme.anim-fast; }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+        if !Theme.is-rtl: Rectangle {
+            width: 3px;
+            height: active ? 20px : 0px;
+            border-radius: 2px;
+            background: active ? Theme.accent : transparent;
+            y: (parent.height - self.height) / 2;
+            animate height { duration: Theme.anim-normal; easing: ease-out; }
+        }
+        if !Theme.is-rtl: Rectangle {
+            width: 26px;
+            height: 26px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 6px;
+            background: active ? Theme.accent.with-alpha(0.20) : transparent;
+            Text {
+                text: root.glyph;
+                color: active ? Theme.accent : Theme.text-muted;
+                font-size: Tokens.font-md * Theme.font-scale;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        if !collapsed: Text {
+            text: root.label;
+            color: active ? Theme.text : Theme.text-muted;
+            font-size: Tokens.font-sm * Theme.font-scale;
+            font-weight: active ? 700 : 500;
+            vertical-alignment: center;
+            horizontal-alignment: Theme.is-rtl ? right : left;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+        if Theme.is-rtl: Rectangle {
+            width: 26px;
+            height: 26px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 6px;
+            background: active ? Theme.accent.with-alpha(0.20) : transparent;
+            Text {
+                text: root.glyph;
+                color: active ? Theme.accent : Theme.text-muted;
+                font-size: Tokens.font-md * Theme.font-scale;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        if Theme.is-rtl: Rectangle {
+            width: 3px;
+            height: active ? 20px : 0px;
+            border-radius: 2px;
+            background: active ? Theme.accent : transparent;
+            y: (parent.height - self.height) / 2;
+            animate height { duration: Theme.anim-normal; easing: ease-out; }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component SignalBarGauge inherits Rectangle {
+    in property <int> percent: 0;
+    in property <string> tech-label: "—";
+    in property <string> score-label: "—";
+    vertical-stretch: 0;
+
+    property <color> bar-color:
+        percent >= 70 ? Theme.success :
+        percent >= 40 ? Theme.accent :
+        percent >= 20 ? Theme.warning : Theme.error;
+
+    VerticalLayout {
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: Tokens.space-md;
+            CellularBars { percent: root.percent; y: (parent.height - self.height) / 2; }
+            Text {
+                text: root.tech-label + "  •  " + root.percent + "%";
+                color: Theme.text;
+                font-size: Tokens.font-xl * Theme.font-scale;
+                font-weight: 800;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+                horizontal-alignment: left;
+            }
+            StatusPill {
+                text: root.score-label;
+                badge-color: root.bar-color;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+        ModernProgressBar {
+            percent: root.percent;
+            bar-color: root.bar-color;
+        }
+    }
+}
+
+export component LiveSvgChart inherits Rectangle {
+    in property <string> title: "Signal Telemetry";
+    in property <string> path-commands: "";
+    in property <string> stats-text: "0% — 100%";
+    vertical-stretch: 0;
+    background: Theme.input-bg;
+    border-radius: Tokens.radius-md;
+    border-width: 1px;
+    border-color: Theme.border-subtle;
+    height: 180px;
+
+    VerticalLayout {
+        padding: Tokens.space-md;
+        spacing: 8px;
+        HorizontalLayout {
+            Text {
+                text: root.title;
+                color: Theme.text-muted;
+                font-size: Tokens.font-xs * Theme.font-scale;
+                font-weight: 700;
+                horizontal-stretch: 1;
+                horizontal-alignment: Theme.is-rtl ? right : left;
+            }
+            Text {
+                text: root.stats-text;
+                color: Theme.accent;
+                font-size: Tokens.font-xs * Theme.font-scale;
+                font-weight: 700;
+            }
+        }
+        Rectangle {
+            background: Theme.card-bg;
+            border-radius: Tokens.radius-sm;
+            border-width: 1px;
+            border-color: Theme.border-subtle;
+            vertical-stretch: 1;
+            // Subtle horizontal reference grid lines (25%, 50%, 75%)
+            Rectangle { y: parent.height * 0.25; height: 1px; width: 100%; background: Theme.border-subtle.with-alpha(0.6); }
+            Rectangle { y: parent.height * 0.50; height: 1px; width: 100%; background: Theme.border-subtle.with-alpha(0.8); }
+            Rectangle { y: parent.height * 0.75; height: 1px; width: 100%; background: Theme.border-subtle.with-alpha(0.6); }
+            Path {
+                width: 100%;
+                height: 100%;
+                viewbox-x: 0;
+                viewbox-y: 0;
+                viewbox-width: 900;
+                viewbox-height: 100;
+                stroke: Theme.chart-line;
+                stroke-width: 2.5px;
+                fill: Theme.chart-line.with-alpha(0.18);
+                commands: root.path-commands;
+            }
+        }
+    }
+}
+
+export component EmptyState inherits Rectangle {
+    in property <string> glyph: "○";
+    in property <string> title;
+    in property <string> subtitle: "";
+    vertical-stretch: 0;
+    background: Theme.input-bg;
+    border-radius: Tokens.radius-md;
+    border-width: 1px;
+    border-color: Theme.border-subtle;
+    height: 104px;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 5px;
+        Text {
+            text: root.glyph;
+            color: Theme.accent;
+            font-size: Tokens.font-lg * Theme.font-scale;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.title;
+            color: Theme.text;
+            font-size: Tokens.font-sm * Theme.font-scale;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        if root.subtitle != "": Text {
+            text: root.subtitle;
+            color: Theme.text-muted;
+            font-size: Tokens.font-xs * Theme.font-scale;
+            horizontal-alignment: center;
+        }
+    }
+}

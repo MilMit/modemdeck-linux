@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "family": "Rolling Wireless",
+  "last_updated": "2026-11-27",
+  "devices": [
+    {
+      "manufacturer": "Rolling Wireless",
+      "oem_manufacturer": "Rolling Wireless",
+      "model": "RW101-GL",
+      "commercial_name": "Rolling Wireless RW101-GL LTE Cat.6",
+      "aliases": ["RW101", "RW101-GL"],
+      "oem_aliases": [],
+      "usb_ids": ["33f8:01a2"],
+      "pci_ids": [],
+      "chipset": "Qualcomm SDX12",
+      "protocols": ["ModemManager", "MBIM", "AT"],
+      "firmware_restrictions": "",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Untested",
+        "carrier_aggregation": "Documented",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Documented"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.rollingwireless.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    },
+    {
+      "manufacturer": "Rolling Wireless",
+      "oem_manufacturer": "Rolling Wireless",
+      "model": "RW135-GL",
+      "commercial_name": "Rolling Wireless RW135-GL LTE Cat.12",
+      "aliases": ["RW135", "RW135-GL"],
+      "oem_aliases": [],
+      "usb_ids": ["33f8:01a4"],
+      "pci_ids": [],
+      "chipset": "Qualcomm SDX20 / SDX24",
+      "protocols": ["ModemManager", "MBIM", "AT"],
+      "firmware_restrictions": "",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Untested",
+        "carrier_aggregation": "Documented",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Documented"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.rollingwireless.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    },
+    {
+      "manufacturer": "Rolling Wireless",
+      "oem_manufacturer": "Rolling Wireless",
+      "model": "RW350-GL",
+      "commercial_name": "Rolling Wireless RW350-GL 5G",
+      "aliases": ["RW350", "RW350-GL"],
+      "oem_aliases": ["HP 5G RW350R-GL", "Lenovo RW350-GL"],
+      "usb_ids": ["33f8:0104"],
+      "pci_ids": ["14c3:4d75"],
+      "chipset": "MediaTek T700",
+      "protocols": ["ModemManager", "MHI", "MBIM", "AT"],
+      "firmware_restrictions": "Uses mtk_t7xx PCIe driver; FCC-unlock may be required.",
+      "capabilities": {
+        "internet_connection": "GenericCompatible",
+        "band_lock": "Documented",
+        "cell_lock": "Unsupported",
+        "carrier_aggregation": "Documented",
+        "esim": "Documented",
+        "gps": "Documented",
+        "fcc_lock": "Documented"
+      },
+      "known_issues": [],
+      "official_references": ["https://www.rollingwireless.com"],
+      "verification_status": "Documented",
+      "last_verified_date": "2026-11-27"
+    }
+  ]
+}

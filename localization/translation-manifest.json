@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source_of_truth": "src/i18n/catalog.rs",
+  "default_locale": "en",
+  "rtl_locales": ["fa", "ar"],
+  "locales": [
+    { "code": "en", "name": "English", "rtl": false },
+    { "code": "fa", "name": "فارسی", "rtl": true },
+    { "code": "ar", "name": "العربية", "rtl": true },
+    { "code": "tr", "name": "Türkçe", "rtl": false },
+    { "code": "de", "name": "Deutsch", "rtl": false },
+    { "code": "fr", "name": "Français", "rtl": false },
+    { "code": "es", "name": "Español", "rtl": false },
+    { "code": "ru", "name": "Русский", "rtl": false }
+  ],
+  "ui_bindings": "ui/tr.slint",
+  "validator": "src/i18n/validation.rs"
+}

@@ -1,0 +1,28 @@
+pkgname=modemdeck
+pkgver=2.0.0.beta.1
+pkgrel=1
+pkgdesc='WWAN and mobile broadband manager for Linux'
+arch=('x86_64')
+url='https://github.com/MilMit/modemdeck-linux'
+license=('GPL-3.0-or-later')
+depends=('modemmanager' 'networkmanager' 'fontconfig' 'libxkbcommon' 'systemd-libs')
+makedepends=('cargo' 'rust')
+provides=('modemdeck')
+conflicts=('modemdeck-git')
+source=("modemdeck::git+https://github.com/MilMit/modemdeck-linux.git#tag=v${pkgver//.beta./-beta.}")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/modemdeck"
+  cargo build --release --locked
+}
+
+package() {
+  cd "$srcdir/modemdeck"
+  install -Dm755 target/release/modemdeck "$pkgdir/usr/bin/modemdeck"
+  install -Dm644 data/net.milmit.ModemDeck.desktop "$pkgdir/usr/share/applications/net.milmit.ModemDeck.desktop"
+  install -Dm644 data/net.milmit.ModemDeck.metainfo.xml "$pkgdir/usr/share/metainfo/net.milmit.ModemDeck.metainfo.xml"
+  install -Dm644 assets/icons/net.milmit.ModemDeck.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/net.milmit.ModemDeck.svg"
+  install -Dm644 data/net.milmit.ModemDeck-monitor.service "$pkgdir/usr/lib/systemd/user/net.milmit.ModemDeck-monitor.service"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

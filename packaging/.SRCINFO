@@ -1,0 +1,20 @@
+pkgbase = modemdeck
+	pkgdesc = WWAN and mobile broadband manager for Linux
+	pkgver = 2.0.0.beta.1
+	pkgrel = 1
+	url = https://github.com/MilMit/modemdeck-linux
+	arch = x86_64
+	license = GPL-3.0-or-later
+	makedepends = cargo
+	makedepends = rust
+	depends = modemmanager
+	depends = networkmanager
+	depends = fontconfig
+	depends = libxkbcommon
+	depends = systemd-libs
+	provides = modemdeck
+	conflicts = modemdeck-git
+	source = modemdeck::git+https://github.com/MilMit/modemdeck-linux.git#tag=v2.0.0-beta.1
+	sha256sums = SKIP
+
+pkgname = modemdeck

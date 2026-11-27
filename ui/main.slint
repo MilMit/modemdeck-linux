@@ -1,0 +1,1498 @@
+import { ScrollView } from "std-widgets.slint";
+import { Tokens, AppThemeMode, UiComplexityMode } from "tokens.slint";
+import { Theme } from "theme.slint";
+import { Tr } from "tr.slint";
+import {
+    ModernCard, HeroCard, KpiTile, StatusPill, ModernButton, PillChip,
+    ToggleSwitch, ModernTextField, ModernProgressBar, CellularBars,
+    NavItem, SignalBarGauge, LiveSvgChart, EmptyState
+} from "components.slint";
+
+export { Theme, Tokens, Tr, AppThemeMode, UiComplexityMode }
+
+export struct BandItem {
+    mm-enum: int,
+    label: string,
+    selected: bool,
+}
+
+export struct AnalyzerResultRow {
+    mm-enum: int,
+    band: string,
+    rsrp: string,
+    sinr: string,
+    dl-mbps: string,
+    ping-ms: string,
+    score: string,
+    status: string,
+}
+
+export struct BandProfileItem {
+    name: string,
+    bands-text: string,
+    built-in: bool,
+    active: bool,
+}
+
+export struct UplinkItem {
+    id: string,
+    kind: string,
+    name: string,
+    interface: string,
+    state: string,
+    health: string,
+    note: string,
+    available: bool,
+}
+
+export struct HotspotClientItem {
+    mac: string,
+    ip: string,
+    hostname: string,
+}
+
+export struct ScanNetworkRow {
+    operator: string,
+    code: string,
+    tech: string,
+    availability: string,
+}
+
+export struct DoctorItem {
+    title: string,
+    severity: string,
+    explanation: string,
+}
+
+export struct SmsItem {
+    sender: string,
+    text: string,
+    timestamp: string,
+    state: string,
+}
+
+export struct ApnItem {
+    name: string,
+    apn: string,
+    uuid: string,
+    active: bool,
+}
+
+component SidebarPanel inherits Rectangle {
+    in-out property <int> active-page;
+    in-out property <bool> sidebar-collapsed;
+    in property <UiComplexityMode> complexity;
+    in property <string> app-version;
+
+    width: sidebar-collapsed ? Tokens.sidebar-collapsed-w : Tokens.sidebar-expanded-w;
+    background: Theme.sidebar-bg;
+    border-width: 1px;
+    border-color: Theme.border;
+    animate width { duration: Theme.anim-fast; }
+
+    VerticalLayout {
+        padding: Tokens.space-sm;
+        spacing: Tokens.space-sm;
+
+        HorizontalLayout {
+            height: 48px;
+            padding-left: 6px;
+            padding-right: 4px;
+            spacing: 8px;
+            if !sidebar-collapsed: Image {
+                source: @image-url("../assets/icons/net.milmit.ModemDeck.svg");
+                width: 28px;
+                height: 28px;
+                y: (parent.height - self.height) / 2;
+            }
+            if !sidebar-collapsed: VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text { text: "ModemDeck"; color: Theme.text; font-size: Tokens.font-md * Theme.font-scale; font-weight: 800; horizontal-alignment: Theme.is-rtl ? right : left; }
+                Text { text: "v" + app-version + " • Slint"; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: Theme.is-rtl ? right : left; }
+            }
+            ModernButton {
+                label: sidebar-collapsed ? (Theme.is-rtl ? "«" : "»") : (Theme.is-rtl ? "»" : "«");
+                ghost: true;
+                clicked => { sidebar-collapsed = !sidebar-collapsed; }
+            }
+        }
+
+        ScrollView {
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 3px;
+                NavItem { glyph: "◉"; label: Tr.nav-overview; active: active-page == 0; collapsed: sidebar-collapsed; clicked => { active-page = 0; } }
+                NavItem { glyph: "≋"; label: Tr.nav-network; active: active-page == 1; collapsed: sidebar-collapsed; clicked => { active-page = 1; } }
+                if complexity != UiComplexityMode.basic: NavItem { glyph: "⚡"; label: Tr.nav-analyzer; active: active-page == 2; collapsed: sidebar-collapsed; clicked => { active-page = 2; } }
+                NavItem { glyph: "◎"; label: Tr.nav-operators; active: active-page == 3; collapsed: sidebar-collapsed; clicked => { active-page = 3; } }
+                NavItem { glyph: "▤"; label: Tr.nav-sim; active: active-page == 4; collapsed: sidebar-collapsed; clicked => { active-page = 4; } }
+                NavItem { glyph: "✉"; label: Tr.nav-messages; active: active-page == 5; collapsed: sidebar-collapsed; clicked => { active-page = 5; } }
+                if complexity != UiComplexityMode.basic: NavItem { glyph: "⌖"; label: Tr.nav-gps; active: active-page == 6; collapsed: sidebar-collapsed; clicked => { active-page = 6; } }
+                if complexity != UiComplexityMode.basic: NavItem { glyph: "✚"; label: Tr.nav-doctor; active: active-page == 7; collapsed: sidebar-collapsed; clicked => { active-page = 7; } }
+                if complexity == UiComplexityMode.expert: NavItem { glyph: "⚙"; label: Tr.nav-hardware; active: active-page == 8; collapsed: sidebar-collapsed; clicked => { active-page = 8; } }
+                if complexity != UiComplexityMode.basic: NavItem { glyph: "⇄"; label: Tr.nav-hotspot; active: active-page == 9; collapsed: sidebar-collapsed; clicked => { active-page = 9; } }
+                if complexity != UiComplexityMode.basic: NavItem { glyph: "◔"; label: Tr.nav-history; active: active-page == 10; collapsed: sidebar-collapsed; clicked => { active-page = 10; } }
+                if complexity == UiComplexityMode.expert: NavItem { glyph: "⌘"; label: Tr.nav-pro; active: active-page == 11; collapsed: sidebar-collapsed; clicked => { active-page = 11; } }
+                NavItem { glyph: "☰"; label: Tr.nav-settings; active: active-page == 12; collapsed: sidebar-collapsed; clicked => { active-page = 12; } }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "ModemDeck — by MilMit";
+    icon: @image-url("../assets/icons/net.milmit.ModemDeck.svg");
+    min-width: Tokens.win-min-w;
+    min-height: Tokens.win-min-h;
+    preferred-width: Tokens.win-default-w;
+    preferred-height: Tokens.win-default-h;
+    background: Theme.bg;
+    in property <string> app-version: "";
+
+    // Navigation & UI state
+    in-out property <int> active-page: 0;
+    in-out property <bool> sidebar-collapsed: false;
+    in-out property <UiComplexityMode> complexity: UiComplexityMode.advanced;
+    in-out property <string> status-banner: "Ready";
+    in-out property <bool> has-modem: false;
+    in-out property <bool> is-connected: false;
+    in-out property <bool> supports-5g: false;
+    in-out property <bool> has-slot2: false;
+    in-out property <bool> has-esim: false;
+    in-out property <bool> hotspot-active: false;
+    in-out property <string> font-size-preset: "default";
+    in-out property <string> chart-stats-text: "0% — 100%";
+    in-out property <bool> debug-open: false;
+    in-out property <string> debug-log-text: "Debug console ready. Click any button to trace events and errors.";
+    in-out property <bool> is-busy: false;
+    in-out property <bool> scan-confirm-pending: false;
+    in-out property <string> busy-message: "";
+    in-out property <[string]> modem-names: [];
+    in-out property <int> selected-modem-idx: 0;
+
+    // Overview Dashboard properties
+    in-out property <string> modem-title: "No Cellular Modem Detected";
+    in-out property <string> modem-subtitle: "Connect a cellular modem or check device access";
+    in-out property <string> operator-label: "—";
+    in-out property <string> country-label: "—";
+    in-out property <string> network-tech: "—";
+    in-out property <string> connection-state: "Offline";
+    in-out property <int> signal-percent: 0;
+    in-out property <string> radio-score-label: "Unknown";
+    in-out property <string> rsrp-val: "—";
+    in-out property <string> rsrq-val: "—";
+    in-out property <string> sinr-val: "—";
+    in-out property <string> rssi-val: "—";
+    in-out property <string> rsrp-quality: "—";
+    in-out property <string> rsrq-quality: "—";
+    in-out property <string> sinr-quality: "—";
+    in-out property <string> rssi-quality: "—";
+    in-out property <string> serving-band: "—";
+    in-out property <string> earfcn-val: "—";
+    in-out property <string> pci-val: "—";
+    in-out property <string> cell-id-val: "—";
+    in-out property <string> ca-status: "Inactive";
+    in-out property <string> dl-speed: "0 B/s";
+    in-out property <string> ul-speed: "0 B/s";
+    in-out property <string> today-usage: "0 MB";
+    in-out property <string> month-usage: "0 MB";
+    in-out property <string> lock-status: "Auto";
+    in-out property <string> internet-health: "Unknown";
+    // Route discovery is not yet exposed by the current platform backend.
+    // Keep this explicit so the UI never implies that modem state == internet path.
+    in-out property <string> internet-route-text: "Default internet route is not being monitored";
+    in-out property <string> hotspot-uplink-text: "Uplink not selected";
+    in-out property <string> hotspot-clients-text: "Client details unavailable";
+    in-out property <string> signal-chart-path: "";
+
+    // Band Manager & Analyzer
+    in-out property <[BandItem]> band-items: [];
+    in-out property <[BandItem]> bands-3g: [];
+    in-out property <[BandItem]> bands-lte-fdd: [];
+    in-out property <[BandItem]> bands-lte-tdd: [];
+    in-out property <[BandItem]> bands-5g: [];
+    in-out property <[BandProfileItem]> band-profiles: [];
+    in-out property <string> current-bands-text: "—";
+    in-out property <bool> band-confirm-pending: false;
+    in-out property <string> band-change-msg: "";
+    in-out property <bool> analyzer-running: false;
+    in-out property <int> analyzer-network-mode: 3; // 0=3G, 1=4G, 2=5G, 3=all
+    in-out property <int> analyzer-progress: 0;
+    in-out property <string> analyzer-stage: "";
+    in-out property <string> analyzer-live-rf: "";
+    in-out property <[AnalyzerResultRow]> analyzer-results: [];
+    in-out property <string> analyzer-summary: "Select duration and start Band Analyzer.";
+    in-out property <string> ca-details-text: "—";
+    in-out property <string> speedtest-result: "Ready for interface-bound connectivity test.";
+
+    // Operators & Auto APN
+    in-out property <string> op-confidence: "Unknown";
+    in-out property <string> op-mcc-mnc: "—";
+    in-out property <string> op-mvno-info: "—";
+    in-out property <string> op-db-coverage: "—";
+    in-out property <string> op-ussd-text: "—";
+    in-out property <[ApnItem]> apn-items: [];
+
+    // SIM / eSIM / Comms
+    in-out property <string> sim-lock-label: "Unknown";
+    in-out property <string> sim-slot-label: "Slot 1";
+    in-out property <string> esim-status-text: "—";
+    in-out property <[SmsItem]> sms-items: [];
+    in-out property <string> ussd-reply-text: "";
+    in-out property <string> call-status-text: "No active calls.";
+
+    // Doctor / Diagnostics / GPS / Hardware / Pro Tools
+    in-out property <[DoctorItem]> doctor-items: [];
+    in-out property <string> doctor-overall: "Not Run";
+    in-out property <string> fcc-status-text: "—";
+    in-out property <string> netdiag-text: "Run connectivity probes to compare domestic & international endpoints.";
+    in-out property <string> gps-status-text: "GPS is disabled by default to save battery.";
+    in-out property <string> cells-summary-text: "—";
+    in-out property <string> hw-details-text: "—";
+    in-out property <string> fw-details-text: "—";
+    in-out property <string> bus-thermal-text: "—";
+    in-out property <string> hw-host-val: "—";
+    in-out property <string> hw-driver-val: "—";
+    in-out property <string> hw-match-val: "—";
+    in-out property <string> hw-bus-val: "—";
+    in-out property <string> hw-pm-val: "—";
+    in-out property <string> hw-thermal-val: "Unknown";
+    in-out property <string> fw-ver-val: "—";
+    in-out property <string> fw-upd-val: "—";
+    in-out property <string> fw-lvfs-val: "—";
+    in-out property <string> op-search-results: "";
+    in-out property <string> hotspot-status-text: "Inactive";
+    in-out property <[UplinkItem]> uplink-items: [];
+    in-out property <string> selected-uplink-id: "auto";
+    in-out property <string> active-path-diagram: "[Clients] ──▶ [AP] ──▶ [Default Route] ──▶ [Internet]";
+    in-out property <string> path-verification-label: "Unverified";
+    in-out property <bool> vpn-detected: false;
+    in-out property <string> vpn-summary-text: "No active VPN tunnel detected.";
+    in-out property <bool> vpn-fail-closed: false;
+    in-out property <string> ap-wifi-device: "—";
+    in-out property <int> ap-band-idx: 1;
+    in-out property <bool> ap-5g-supported: false;
+    in-out property <bool> ap-wpa3-supported: false;
+    in-out property <bool> ap-use-wpa3: false;
+    in-out property <bool> ap-sta-ap-concurrent: false;
+    in-out property <bool> ap-wifi-active: false;
+    in-out property <string> ap-cap-note: "";
+    in-out property <[HotspotClientItem]> hotspot-clients: [];
+    in-out property <string> hotspot-traffic-text: "0 B RX / 0 B TX (interface aggregate)";
+    in-out property <[ScanNetworkRow]> scan-results: [];
+    in-out property <string> failover-status-text: "Manual / Off";
+    in-out property <string> scanner-output-text: "No scan performed yet.";
+    in-out property <string> antenna-output-text: "Record 2+ positions to compare signal quality.";
+    in-out property <string> at-output-text: "Read-only mode active; dangerous NV/firmware commands are always blocked.";
+    in-out property <string> history-summary-text: "—";
+
+    // Settings
+    in-out property <bool> pref-close-to-tray: true;
+    in-out property <bool> pref-start-with-system: false;
+    in-out property <bool> pref-bg-monitor: false;
+    in-out property <bool> pref-notifications: true;
+    in-out property <bool> pref-reduced-motion: false;
+    in-out property <bool> pref-remote-server: false;
+    in-out property <string> pref-language: "en";
+
+    // Local input state
+    property <string> pin-text: "";
+    property <string> sms-num-text: "";
+    property <string> sms-body-text: "";
+    property <string> ussd-text: "";
+    property <string> antenna-pos-text: "";
+    property <string> at-cmd-text: "";
+    property <bool> at-allow-write: false;
+
+    property <string> op-query-text: "";
+    property <string> profile-name-text: "";
+    property <string> apn-name-text: "";
+    property <string> apn-val-text: "";
+    property <string> call-num-text: "";
+    property <string> hotspot-ssid-text: "ModemDeck-AP";
+    property <string> hotspot-pass-text: "";
+
+    // Callbacks to Rust ViewModel/Controllers
+    callback refresh-clicked();
+    callback select-modem(int);
+    callback cycle-theme();
+    callback set-complexity(int);
+    callback set-language(string);
+    callback set-font-size(string);
+    callback select-all-bands();
+    callback deselect-all-bands();
+    callback search-operators(string);
+    callback clear-debug-log();
+    callback copy-debug-log();
+    callback save-band-profile(string);
+    callback apply-band-profile(string);
+    callback delete-band-profile(string);
+    callback create-manual-apn(string, string);
+    callback delete-apn(string);
+    callback dial-call(string);
+    callback hangup-calls();
+    callback refresh-calls();
+    callback start-hotspot-with(string, string);
+    callback start-hotspot-configured(string, string, int, bool);
+    callback select-uplink(string);
+    callback toggle-vpn-fail-closed(bool);
+    callback register-operator(string);
+    callback read-vendor-telemetry();
+    callback export-history-csv();
+    callback export-history-json();
+    callback clear-history();
+    callback apply-bands-auto();
+    callback apply-bands-custom();
+    callback toggle-band(int);
+    callback confirm-band-change();
+    callback rollback-band-change();
+    callback save-persistent-lock();
+    callback start-band-analyzer(int, int, bool);
+    callback cancel-band-analyzer();
+    callback apply-analyzed-band(int);
+    callback run-speedtest();
+    callback create-recommended-apn();
+    callback activate-apn(string);
+    callback unlock-sim-pin(string);
+    callback switch-sim-slot(int);
+    callback load-esim-profiles();
+    callback refresh-sms();
+    callback send-sms(string, string);
+    callback send-ussd(string);
+    callback run-doctor();
+    callback fix-doctor-safe();
+    callback run-netdiag();
+    callback export-html-health();
+    callback export-diagnostics();
+    callback toggle-gps(bool);
+    callback read-gps();
+    callback export-gps-gpx();
+    callback export-gps-csv();
+    callback toggle-hotspot(bool);
+    callback apply-failover(int);
+    callback run-network-scan();
+    callback register-auto-network();
+    callback set-network-mode(int);
+    callback record-antenna-pos(string);
+    callback run-at-command(string, bool);
+    callback export-backup();
+    callback export-hw-report();
+    callback save-preferences(bool, bool, bool, bool, bool, bool);
+    callback quit-app();
+
+    HorizontalLayout {
+        // Collapsible Sidebar (Left in LTR)
+        if !Theme.is-rtl: SidebarPanel {
+            active-page <=> root.active-page;
+            sidebar-collapsed <=> root.sidebar-collapsed;
+            complexity: root.complexity;
+            app-version: root.app-version;
+        }
+
+        // Main Workspace
+        VerticalLayout {
+            horizontal-stretch: 1;
+
+            // Top Command Bar
+            Rectangle {
+                height: 60px;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.border;
+                HorizontalLayout {
+                    padding-left: Tokens.space-lg;
+                    padding-right: Tokens.space-lg;
+                    spacing: Tokens.space-md;
+
+                    CellularBars { percent: root.signal-percent; y: (parent.height - self.height) / 2; }
+
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        Text { text: root.modem-title; color: Theme.text; font-size: Tokens.font-md; font-weight: 800; overflow: elide; }
+                        Text { text: root.modem-subtitle; color: Theme.text-muted; font-size: Tokens.font-xs; overflow: elide; }
+                    }
+
+                    if root.modem-names.length > 1: Text {
+                        text: Tr.modem-selection-unavailable;
+                        color: Theme.warning;
+                        font-size: Tokens.font-xs;
+                        wrap: word-wrap;
+                        width: 150px;
+                        vertical-alignment: center;
+                    }
+
+                    StatusPill {
+                        text: root.network-tech + " • " + root.connection-state;
+                        badge-color: root.is-connected ? Theme.success : root.has-modem ? Theme.info : Theme.warning;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    ModernButton {
+                        label: Theme.mode == AppThemeMode.light ? Tr.btn-light : Theme.mode == AppThemeMode.high-contrast ? Tr.btn-contrast : Tr.btn-dark;
+                        glyph: "◐";
+                        y: (parent.height - self.height) / 2;
+                        clicked => { root.cycle-theme(); }
+                    }
+
+                    // Complexity Segmented Switch
+                    Rectangle {
+                        height: 36px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: Tokens.radius-sm;
+                        background: Theme.input-bg;
+                        border-width: 1px;
+                        border-color: Theme.border;
+                        HorizontalLayout {
+                            padding: 3px;
+                            spacing: 3px;
+                            PillChip { label: Tr.btn-basic; active: complexity == UiComplexityMode.basic; clicked => { root.set-complexity(0); } }
+                            PillChip { label: Tr.btn-advanced; active: complexity == UiComplexityMode.advanced; clicked => { root.set-complexity(1); } }
+                            PillChip { label: Tr.btn-expert; active: complexity == UiComplexityMode.expert; clicked => { root.set-complexity(2); } }
+                        }
+                    }
+
+                    PillChip {
+                        label: "🐛 " + Tr.btn-debug;
+                        active: root.debug-open;
+                        y: (parent.height - self.height) / 2;
+                        clicked => { root.debug-open = !root.debug-open; }
+                    }
+
+                    ModernButton {
+                        label: root.is-busy ? Tr.status-please-wait : Tr.btn-refresh;
+                        glyph: "↻";
+                        primary: true;
+                        enabled: !root.is-busy;
+                        y: (parent.height - self.height) / 2;
+                        clicked => { root.refresh-clicked(); }
+                    }
+                }
+            }
+
+            // Busy / Please Wait Banner
+            if root.is-busy: Rectangle {
+                height: 40px;
+                background: Theme.primary.with-alpha(0.16);
+                border-width: 1px;
+                border-color: Theme.primary.with-alpha(0.45);
+                HorizontalLayout {
+                    padding-left: Tokens.space-lg;
+                    padding-right: Tokens.space-lg;
+                    spacing: Tokens.space-sm;
+                    StatusPill {
+                        text: Tr.status-please-wait;
+                        badge-color: Theme.accent;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: root.busy-message;
+                        color: Theme.text;
+                        font-size: Tokens.font-sm * Theme.font-scale;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                        horizontal-alignment: Theme.is-rtl ? right : left;
+                        overflow: elide;
+                    }
+                }
+            }
+
+            // Global Band Confirmation Safety Banner (45s rollback guard)
+            if root.band-confirm-pending: Rectangle {
+                height: 48px;
+                background: Theme.warning.with-alpha(0.16);
+                border-width: 1px;
+                border-color: Theme.warning.with-alpha(0.5);
+                HorizontalLayout {
+                    padding-left: Tokens.space-lg;
+                    padding-right: Tokens.space-lg;
+                    spacing: Tokens.space-md;
+                    Text {
+                        text: "⚠ " + Tr.banner-rollback;
+                        color: Theme.warning;
+                        font-size: Tokens.font-sm;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    ModernButton { label: Tr.btn-keep; primary: true; y: 6px; clicked => { root.confirm-band-change(); } }
+                    ModernButton { label: Tr.btn-rollback; danger: true; y: 6px; clicked => { root.rollback-band-change(); } }
+                }
+            }
+
+            // Status Strip
+            Rectangle {
+                height: 28px;
+                background: Theme.bg;
+                HorizontalLayout {
+                    padding-left: Tokens.space-lg;
+                    padding-right: Tokens.space-lg;
+                    Text {
+                        text: root.status-banner;
+                        color: Theme.text-muted;
+                        font-size: Tokens.font-xs;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        text: "MilMit • milmit.net";
+                        color: Theme.primary;
+                        font-size: Tokens.font-xs;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Content Scroll Area
+            ScrollView {
+                vertical-stretch: 1;
+                VerticalLayout {
+                    padding: Tokens.space-lg;
+                    spacing: Tokens.space-md;
+                    alignment: start;
+
+                    // Page 0: Overview Dashboard
+                    if active-page == 0: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        HeroCard {
+                            SignalBarGauge {
+                                percent: root.signal-percent;
+                                tech-label: root.network-tech + " (" + root.serving-band + ")";
+                                score-label: root.radio-score-label;
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: Tr.nav-network; glyph: "≋"; clicked => { active-page = 1; } }
+                                ModernButton { label: "Read Active Band"; glyph: "◎"; enabled: !root.is-busy; clicked => { root.read-vendor-telemetry(); } }
+                                ModernButton { label: Tr.btn-speed-test; glyph: "⚡"; clicked => { active-page = 2; root.run-speedtest(); } }
+                                ModernButton { label: Tr.nav-doctor; glyph: "✚"; clicked => { active-page = 7; root.run-doctor(); } }
+                                ModernButton { label: Tr.btn-reset-auto; glyph: "↺"; clicked => { root.apply-bands-auto(); } }
+                            }
+                        }
+
+                        ModernCard {
+                            title: Tr.home-sharing;
+                            subtitle: "See which link carries internet and what the hotspot shares";
+                            glyph: "⇄";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: Tr.home-route; value: root.internet-route-text; caption: "Route monitoring not connected"; accent: Theme.warning; horizontal-stretch: 1; }
+                                KpiTile { label: "Hotspot uplink"; value: root.hotspot-uplink-text; caption: root.hotspot-active ? "Hotspot active" : "Hotspot off"; accent: root.hotspot-active ? Theme.success : Theme.text-muted; horizontal-stretch: 1; }
+                                ModernButton { label: Tr.home-manage-sharing; primary: true; clicked => { active-page = 9; } }
+                            }
+                        }
+
+                        LiveSvgChart {
+                            title: Tr.chart-title;
+                            path-commands: root.signal-chart-path;
+                            stats-text: root.chart-stats-text;
+                        }
+
+                        ModernCard {
+                            title: Tr.lbl-rf-metrics;
+                            subtitle: Tr.sub-rf;
+                            glyph: "≋";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: "RSRP"; value: root.rsrp-val; caption: root.rsrp-quality; accent: Theme.primary; horizontal-stretch: 1; }
+                                KpiTile { label: "RSRQ"; value: root.rsrq-val; caption: root.rsrq-quality; accent: Theme.info; horizontal-stretch: 1; }
+                                KpiTile { label: "SINR"; value: root.sinr-val; caption: root.sinr-quality; accent: Theme.success; horizontal-stretch: 1; }
+                                KpiTile { label: "RSSI"; value: root.rssi-val; caption: root.rssi-quality; accent: Theme.warning; horizontal-stretch: 1; }
+                            }
+                        }
+
+                        ModernCard {
+                            title: Tr.lbl-cell-traffic;
+                            glyph: "⇄";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: Tr.lbl-operator; value: root.operator-label; caption: root.country-label; horizontal-stretch: 1; }
+                                KpiTile { label: "Carrier Agg."; value: root.ca-status; accent: Theme.info; horizontal-stretch: 1; }
+                                KpiTile { label: "EARFCN / PCI"; value: root.earfcn-val + " / " + root.pci-val; caption: "Cell: " + root.cell-id-val; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-band-lock; value: root.lock-status; accent: Theme.warning; horizontal-stretch: 1; }
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: Tr.lbl-download; value: root.dl-speed; accent: Theme.success; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-upload; value: root.ul-speed; accent: Theme.primary; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-today; value: root.today-usage; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-month; value: root.month-usage; horizontal-stretch: 1; }
+                            }
+                        }
+                    }
+
+                    // Page 1: Network & Bands
+                    if active-page == 1: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        HeroCard {
+                            SignalBarGauge {
+                                percent: root.signal-percent;
+                                tech-label: root.network-tech + " (" + root.serving-band + ")";
+                                score-label: root.radio-score-label;
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: "Serving Band"; value: root.serving-band; accent: Theme.accent; horizontal-stretch: 1; }
+                                KpiTile { label: "RSRP"; value: root.rsrp-val; caption: root.rsrp-quality; horizontal-stretch: 1; }
+                                KpiTile { label: "RSRQ"; value: root.rsrq-val; caption: root.rsrq-quality; horizontal-stretch: 1; }
+                                KpiTile { label: "SINR"; value: root.sinr-val; caption: root.sinr-quality; horizontal-stretch: 1; }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-band-control;
+                            subtitle: Tr.sub-band-ctrl;
+                            glyph: "≋";
+                            Text { text: root.current-bands-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; horizontal-alignment: Theme.is-rtl ? right : left; }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: Tr.btn-reset-auto; glyph: "↺"; clicked => { root.apply-bands-auto(); } }
+                                ModernButton { label: Tr.btn-apply-bands; glyph: "✓"; primary: true; clicked => { root.apply-bands-custom(); } }
+                                ModernButton { label: Tr.btn-save-lock; glyph: "🔒"; clicked => { root.save-persistent-lock(); } }
+                                ModernButton { label: "Read Active Band"; glyph: "◎"; enabled: !root.is-busy; clicked => { root.read-vendor-telemetry(); } }
+                            }
+                            if root.band-change-msg != "": Text { text: root.band-change-msg; color: Theme.warning; font-size: Tokens.font-sm; wrap: word-wrap; }
+                        }
+
+                        ModernCard {
+                            title: "Saved Band Profiles";
+                            glyph: "★";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.profile-name-text; placeholder: "Profile name (e.g. Gaming B3+B7)"; horizontal-stretch: 1; }
+                                ModernButton { label: "Save Profile"; primary: true; clicked => { root.save-band-profile(root.profile-name-text); } }
+                            }
+                            for prof in root.band-profiles: Rectangle {
+                                height: 42px;
+                                background: Theme.input-bg;
+                                border-radius: Tokens.radius-sm;
+                                border-width: 1px;
+                                border-color: prof.active ? Theme.primary.with-alpha(0.6) : Theme.border-subtle;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: Tokens.space-sm;
+                                    Text { text: prof.name + " • " + prof.bands-text; color: Theme.text; font-size: Tokens.font-xs * Theme.font-scale; font-weight: 600; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                                    ModernButton { label: "Apply"; y: 2px; clicked => { root.apply-band-profile(prof.name); } }
+                                    ModernButton { label: "Delete"; danger: true; enabled: !prof.built-in; y: 2px; clicked => { root.delete-band-profile(prof.name); } }
+                                }
+                            }
+                        }
+
+                        ModernCard {
+                            title: Tr.lbl-supported-bands;
+                            subtitle: Tr.sub-band-chips;
+                            glyph: "⊞";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                alignment: start;
+                                PillChip { label: "Select All"; clicked => { root.select-all-bands(); } }
+                                PillChip { label: "Deselect All"; clicked => { root.deselect-all-bands(); } }
+                            }
+                            if root.band-items.length == 0: EmptyState {
+                                glyph: "≋";
+                                title: Tr.empty-bands-t;
+                                subtitle: Tr.empty-bands-s;
+                            }
+                            if root.bands-lte-fdd.length > 0: VerticalLayout {
+                                spacing: 6px;
+                                StatusPill { text: "4G LTE FDD"; badge-color: Theme.primary; pulse: false; }
+                                Rectangle {
+                                    height: Math.ceil(root.bands-lte-fdd.length / 4) * 40px;
+                                    for item[idx] in root.bands-lte-fdd: PillChip {
+                                        x: Math.mod(idx, 4) * (parent.width / 4);
+                                        y: Math.floor(idx / 4) * 40px;
+                                        width: (parent.width / 4) - 8px;
+                                        label: item.label;
+                                        active: item.selected;
+                                        clicked => { root.toggle-band(item.mm-enum); }
+                                    }
+                                }
+                            }
+                            if root.bands-lte-tdd.length > 0: VerticalLayout {
+                                spacing: 6px;
+                                StatusPill { text: "4G LTE TDD"; badge-color: Theme.info; pulse: false; }
+                                Rectangle {
+                                    height: Math.ceil(root.bands-lte-tdd.length / 4) * 40px;
+                                    for item[idx] in root.bands-lte-tdd: PillChip {
+                                        x: Math.mod(idx, 4) * (parent.width / 4);
+                                        y: Math.floor(idx / 4) * 40px;
+                                        width: (parent.width / 4) - 8px;
+                                        label: item.label;
+                                        active: item.selected;
+                                        clicked => { root.toggle-band(item.mm-enum); }
+                                    }
+                                }
+                            }
+                            if root.bands-5g.length > 0: VerticalLayout {
+                                spacing: 6px;
+                                StatusPill { text: "5G NR"; badge-color: Theme.success; pulse: false; }
+                                Rectangle {
+                                    height: Math.ceil(root.bands-5g.length / 4) * 40px;
+                                    for item[idx] in root.bands-5g: PillChip {
+                                        x: Math.mod(idx, 4) * (parent.width / 4);
+                                        y: Math.floor(idx / 4) * 40px;
+                                        width: (parent.width / 4) - 8px;
+                                        label: item.label;
+                                        active: item.selected;
+                                        clicked => { root.toggle-band(item.mm-enum); }
+                                    }
+                                }
+                            }
+                            if root.bands-3g.length > 0: VerticalLayout {
+                                spacing: 6px;
+                                StatusPill { text: "3G UMTS / WCDMA"; badge-color: Theme.warning; pulse: false; }
+                                Rectangle {
+                                    height: Math.ceil(root.bands-3g.length / 4) * 40px;
+                                    for item[idx] in root.bands-3g: PillChip {
+                                        x: Math.mod(idx, 4) * (parent.width / 4);
+                                        y: Math.floor(idx / 4) * 40px;
+                                        width: (parent.width / 4) - 8px;
+                                        label: item.label;
+                                        active: item.selected;
+                                        clicked => { root.toggle-band(item.mm-enum); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Page 2: Band Analyzer & Speed Test
+                    if active-page == 2: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-analyzer;
+                            subtitle: Tr.sub-analyzer;
+                            glyph: "⚡";
+                            Text { text: root.analyzer-summary; color: Theme.text; font-size: Tokens.font-sm * Theme.font-scale; wrap: word-wrap; horizontal-alignment: Theme.is-rtl ? right : left; }
+                            Text { text: Tr.analyzer-networks-prompt; color: Theme.text-muted; font-size: Tokens.font-sm; horizontal-alignment: Theme.is-rtl ? right : left; }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: Tr.analyzer-net-3g; primary: root.analyzer-network-mode == 0; enabled: !root.analyzer-running; clicked => { root.analyzer-network-mode = 0; } }
+                                ModernButton { label: Tr.analyzer-net-4g; primary: root.analyzer-network-mode == 1; enabled: !root.analyzer-running; clicked => { root.analyzer-network-mode = 1; } }
+                                ModernButton { label: Tr.analyzer-net-5g; primary: root.analyzer-network-mode == 2; enabled: !root.analyzer-running; clicked => { root.analyzer-network-mode = 2; } }
+                                ModernButton { label: Tr.analyzer-net-all; primary: root.analyzer-network-mode == 3; enabled: !root.analyzer-running; clicked => { root.analyzer-network-mode = 3; } }
+                            }
+                            if root.analyzer-running && root.analyzer-stage != "": Text { text: root.analyzer-stage; color: Theme.accent; font-size: Tokens.font-sm * Theme.font-scale; font-weight: 700; }
+                            if root.analyzer-running && root.analyzer-live-rf != "": Text { text: root.analyzer-live-rf; color: Theme.text-muted; font-size: Tokens.font-xs * Theme.font-scale; }
+                            if root.analyzer-running: ModernProgressBar { percent: root.analyzer-progress; bar-color: Theme.primary; }
+                            Text { text: "CA Status: " + root.ca-details-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: "Fast RF + Speed (15s)"; glyph: "⚡"; primary: true; enabled: !root.analyzer-running; clicked => { root.start-band-analyzer(15, root.analyzer-network-mode, true); } }
+                                ModernButton { label: "Radio + Speed (45s)"; glyph: "▶"; enabled: !root.analyzer-running; clicked => { root.start-band-analyzer(45, root.analyzer-network-mode, true); } }
+                                ModernButton { label: Tr.btn-scan-5m; glyph: "◔"; enabled: !root.analyzer-running; clicked => { root.start-band-analyzer(300, root.analyzer-network-mode, false); } }
+                                ModernButton { label: Tr.btn-cancel; glyph: "✕"; danger: true; enabled: root.analyzer-running; clicked => { root.cancel-band-analyzer(); } }
+                            }
+                            if root.analyzer-results.length > 0: VerticalLayout {
+                                spacing: 4px;
+                                Rectangle {
+                                    height: 32px;
+                                    background: Theme.chip-bg;
+                                    border-radius: Tokens.radius-xs;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        Text { text: "Band"; color: Theme.text-muted; font-size: 12px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: "RSRP"; color: Theme.text-muted; font-size: 12px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: "SINR"; color: Theme.text-muted; font-size: 12px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: "Download"; color: Theme.text-muted; font-size: 12px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: "Ping"; color: Theme.text-muted; font-size: 12px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: "Score"; color: Theme.text-muted; font-size: 12px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: "Action"; color: Theme.text-muted; font-size: 12px; font-weight: 700; width: 76px; horizontal-alignment: center; vertical-alignment: center; }
+                                    }
+                                }
+                                for row in root.analyzer-results: Rectangle {
+                                    height: 38px;
+                                    background: Theme.input-bg;
+                                    border-radius: Tokens.radius-xs;
+                                    border-width: 1px;
+                                    border-color: Theme.border-subtle;
+                                    HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 10px;
+                                        spacing: 6px;
+                                        Text { text: row.band; color: Theme.accent; font-size: 12.5px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: row.rsrp; color: Theme.text; font-size: 12.5px; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: row.sinr; color: Theme.text; font-size: 12.5px; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: row.dl-mbps; color: Theme.success; font-size: 12.5px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: row.ping-ms; color: Theme.text; font-size: 12.5px; horizontal-stretch: 1; vertical-alignment: center; }
+                                        Text { text: row.score + " • " + row.status; color: Theme.primary; font-size: 12px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                        ModernButton { label: "Apply"; primary: true; width: 76px; y: 1px; clicked => { root.apply-analyzed-band(row.mm-enum); } }
+                                    }
+                                }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-speedtest;
+                            subtitle: Tr.sub-speedtest;
+                            glyph: "◔";
+                            Text { text: root.speedtest-result; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            HorizontalLayout {
+                                ModernButton { label: Tr.btn-run-speedtest; glyph: "▶"; primary: true; enabled: !root.is-busy; clicked => { root.run-speedtest(); } }
+                            }
+                        }
+                    }
+
+                    // Page 3: Operators
+                    if active-page == 3: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.scan-live-title;
+                            subtitle: Tr.scan-live-subtitle;
+                            glyph: "⌕";
+                            Text { text: Tr.scan-impact; color: Theme.warning; font-size: Tokens.font-sm; wrap: word-wrap; horizontal-alignment: Theme.is-rtl ? right : left; }
+                            HorizontalLayout {
+                                ModernButton { label: root.scan-confirm-pending ? Tr.scan-confirm : Tr.scan-start; glyph: "⌕"; primary: true; enabled: root.has-modem && !root.is-busy; clicked => {
+                                    if root.scan-confirm-pending { root.scan-confirm-pending = false; root.run-network-scan(); }
+                                    else { root.scan-confirm-pending = true; }
+                                } }
+                                ModernButton { label: Tr.scan-auto; enabled: root.has-modem && !root.is-busy; clicked => { root.register-auto-network(); } }
+                            }
+                            if root.scan-confirm-pending: HorizontalLayout {
+                                Text { text: Tr.scan-confirm-impact; color: Theme.warning; font-size: Tokens.font-sm; horizontal-stretch: 1; vertical-alignment: center; wrap: word-wrap; }
+                                ModernButton { label: Tr.btn-cancel; clicked => { root.scan-confirm-pending = false; } }
+                            }
+                            Text { text: root.scanner-output-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            Text { text: Tr.scan-manual-note; color: Theme.text-muted; font-size: Tokens.font-xs; wrap: word-wrap; }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-op-center;
+                            subtitle: root.op-db-coverage;
+                            glyph: "◎";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: Tr.lbl-operator; value: root.operator-label; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-country; value: root.country-label; horizontal-stretch: 1; }
+                                KpiTile { label: "MCC-MNC"; value: root.op-mcc-mnc; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-confidence; value: root.op-confidence; accent: Theme.success; horizontal-stretch: 1; }
+                            }
+                            Text { text: "MVNO / Host: " + root.op-mvno-info; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            Text { text: "Verified USSD: " + root.op-ussd-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            HorizontalLayout {
+                                ModernButton { label: Tr.btn-create-apn; glyph: "+"; primary: true; clicked => { root.create-recommended-apn(); } }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.scan-db-title;
+                            subtitle: Tr.scan-db-note;
+                            glyph: "⌕";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.op-query-text; placeholder: "Search operator, country, or MCC-MNC (e.g. 432-35)"; horizontal-stretch: 1; }
+                                ModernButton { label: "Search"; primary: true; clicked => { root.search-operators(root.op-query-text); } }
+                            }
+                            if root.op-search-results != "": Text { text: root.op-search-results; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                        }
+                    }
+
+                    // Page 4: SIM, eSIM & APN
+                    if active-page == 4: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-sim-sec;
+                            glyph: "▤";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: Tr.lbl-sim-lock; value: root.sim-lock-label; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-sim-slot; value: root.sim-slot-label; horizontal-stretch: 1; }
+                            }
+                            Text { text: "eSIM / eUICC: " + root.esim-status-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.pin-text; placeholder: Tr.ph-pin; input-type: password; horizontal-stretch: 1; }
+                                ModernButton { label: Tr.btn-unlock-pin; primary: true; clicked => { root.unlock-sim-pin(root.pin-text); } }
+                                ModernButton { label: Tr.btn-slot1; clicked => { root.switch-sim-slot(1); } }
+                                ModernButton { label: Tr.btn-slot2; enabled: root.has-slot2; clicked => { root.switch-sim-slot(2); } }
+                                ModernButton { label: Tr.btn-esim; enabled: root.has-esim; clicked => { root.load-esim-profiles(); } }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-apn-profiles;
+                            glyph: "⇄";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.apn-name-text; placeholder: "Profile name"; horizontal-stretch: 1; }
+                                ModernTextField { text <=> root.apn-val-text; placeholder: "APN (e.g. mtnirancell)"; horizontal-stretch: 1; }
+                                ModernButton { label: "Create APN"; primary: true; clicked => { root.create-manual-apn(root.apn-name-text, root.apn-val-text); } }
+                            }
+                            if root.apn-items.length == 0: EmptyState {
+                                glyph: "▤";
+                                title: Tr.empty-apn-t;
+                                subtitle: Tr.empty-apn-s;
+                            }
+                            for apn in root.apn-items: Rectangle {
+                                height: 48px;
+                                background: Theme.input-bg;
+                                border-radius: Tokens.radius-sm;
+                                border-width: 1px;
+                                border-color: apn.active ? Theme.success.with-alpha(0.5) : Theme.border-subtle;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: Tokens.space-sm;
+                                    Text { text: apn.name + "  (" + apn.apn + ")"; color: Theme.text; font-size: Tokens.font-sm; font-weight: 600; horizontal-stretch: 1; vertical-alignment: center; }
+                                    StatusPill { text: apn.active ? "Active" : "Saved"; badge-color: apn.active ? Theme.success : Theme.text-muted; y: 10px; }
+                                    ModernButton { label: Tr.btn-activate; y: 5px; clicked => { root.activate-apn(apn.uuid); } }
+                                    ModernButton { label: "Delete"; danger: true; y: 5px; clicked => { root.delete-apn(apn.uuid); } }
+                                }
+                            }
+                        }
+                    }
+
+                    // Page 5: Messages & USSD
+                    if active-page == 5: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-sms;
+                            glyph: "✉";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.sms-num-text; placeholder: Tr.ph-phone; horizontal-stretch: 1; }
+                                ModernTextField { text <=> root.sms-body-text; placeholder: Tr.ph-sms; horizontal-stretch: 2; }
+                                ModernButton { label: Tr.btn-send-sms; glyph: "➤"; primary: true; clicked => { root.send-sms(root.sms-num-text, root.sms-body-text); } }
+                                ModernButton { label: Tr.btn-refresh; glyph: "↻"; clicked => { root.refresh-sms(); } }
+                            }
+                            if root.sms-items.length == 0: EmptyState {
+                                glyph: "✉";
+                                title: Tr.empty-sms-t;
+                                subtitle: Tr.empty-sms-s;
+                            }
+                            for msg in root.sms-items: Rectangle {
+                                background: Theme.input-bg;
+                                border-radius: Tokens.radius-sm;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+                                VerticalLayout {
+                                    padding: Tokens.space-md;
+                                    spacing: 4px;
+                                    Text { text: msg.sender + " • " + msg.state; color: Theme.primary; font-size: Tokens.font-xs; font-weight: 700; }
+                                    Text { text: msg.text; color: Theme.text; font-size: Tokens.font-sm; wrap: word-wrap; }
+                                }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-ussd;
+                            glyph: "#";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.ussd-text; placeholder: "e.g. *555# or *141*1#"; horizontal-stretch: 1; }
+                                ModernButton { label: Tr.btn-send-ussd; primary: true; clicked => { root.send-ussd(root.ussd-text); } }
+                            }
+                            if root.ussd-reply-text != "": Rectangle {
+                                background: Theme.input-bg;
+                                border-radius: Tokens.radius-sm;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+                                VerticalLayout {
+                                    padding: Tokens.space-md;
+                                    Text { text: root.ussd-reply-text; color: Theme.text; font-size: Tokens.font-sm; wrap: word-wrap; }
+                                }
+                            }
+                        }
+                        ModernCard {
+                            title: "Voice Calls";
+                            glyph: "☎";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.call-num-text; placeholder: Tr.ph-phone; horizontal-stretch: 1; }
+                                ModernButton { label: "Dial"; primary: true; clicked => { root.dial-call(root.call-num-text); } }
+                                ModernButton { label: "Hangup All"; danger: true; clicked => { root.hangup-calls(); } }
+                                ModernButton { label: Tr.btn-refresh; clicked => { root.refresh-calls(); } }
+                            }
+                            Text { text: root.call-status-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                        }
+                    }
+
+                    // Page 6: GPS & Cells
+                    if active-page == 6: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-gps;
+                            subtitle: Tr.sub-gps;
+                            glyph: "⌖";
+                            Text { text: root.gps-status-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: Tr.btn-gps-on; clicked => { root.toggle-gps(true); } }
+                                ModernButton { label: Tr.btn-gps-off; clicked => { root.toggle-gps(false); } }
+                                ModernButton { label: Tr.btn-gps-read; primary: true; clicked => { root.read-gps(); } }
+                                ModernButton { label: "Export GPX"; clicked => { root.export-gps-gpx(); } }
+                                ModernButton { label: "Export CSV"; clicked => { root.export-gps-csv(); } }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-cells;
+                            glyph: "◎";
+                            Text { text: root.cells-summary-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                        }
+                    }
+
+                    // Page 7: Modem Doctor & Internet Diagnostics
+                    if active-page == 7: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.nav-doctor + " • " + root.doctor-overall;
+                            subtitle: Tr.sub-doctor;
+                            glyph: "✚";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: Tr.btn-run-doctor; glyph: "▶"; primary: true; clicked => { root.run-doctor(); } }
+                                ModernButton { label: Tr.btn-fix-safe; glyph: "✓"; clicked => { root.fix-doctor-safe(); } }
+                                ModernButton { label: "HTML Health Card"; clicked => { root.export-html-health(); } }
+                                ModernButton { label: "Privacy-Safe Txt"; clicked => { root.export-diagnostics(); } }
+                            }
+                            if root.doctor-items.length == 0: EmptyState {
+                                glyph: "✚";
+                                title: Tr.empty-doc-t;
+                                subtitle: Tr.empty-doc-s;
+                            }
+                            for chk in root.doctor-items: Rectangle {
+                                background: Theme.input-bg;
+                                border-radius: Tokens.radius-sm;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+                                VerticalLayout {
+                                    padding: Tokens.space-md;
+                                    spacing: 4px;
+                                    Text { text: "[" + chk.severity + "]  " + chk.title; color: Theme.text; font-size: Tokens.font-sm * Theme.font-scale; font-weight: 700; horizontal-alignment: Theme.is-rtl ? right : left; }
+                                    Text { text: chk.explanation; color: Theme.text-muted; font-size: Tokens.font-xs * Theme.font-scale; wrap: word-wrap; horizontal-alignment: Theme.is-rtl ? right : left; }
+                                }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-netdiag;
+                            glyph: "⇄";
+                            Text { text: "FCC Lock: " + root.fcc-status-text; color: Theme.text; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            Text { text: root.netdiag-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            HorizontalLayout {
+                                ModernButton { label: Tr.btn-netdiag; primary: true; enabled: !root.is-busy; clicked => { root.run-netdiag(); } }
+                            }
+                        }
+                    }
+
+                    // Page 8: Hardware & Firmware
+                    if active-page == 8: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-hw;
+                            glyph: "⚙";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: "Host"; value: root.hw-host-val; horizontal-stretch: 1; }
+                                KpiTile { label: "Driver"; value: root.hw-driver-val; horizontal-stretch: 1; }
+                                KpiTile { label: "Match"; value: root.hw-match-val; horizontal-stretch: 1; }
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: "Bus Link"; value: root.hw-bus-val; horizontal-stretch: 1; }
+                                KpiTile { label: "Power Mgmt"; value: root.hw-pm-val; horizontal-stretch: 1; }
+                                KpiTile { label: "Thermal"; value: root.hw-thermal-val; horizontal-stretch: 1; }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-fw;
+                            glyph: "▤";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: "Firmware"; value: root.fw-ver-val; horizontal-stretch: 1; }
+                                KpiTile { label: "fwupd"; value: root.fw-upd-val; horizontal-stretch: 1; }
+                                KpiTile { label: "LVFS"; value: root.fw-lvfs-val; horizontal-stretch: 1; }
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: Tr.btn-backup; clicked => { root.export-backup(); } }
+                                ModernButton { label: Tr.btn-hw-rep; clicked => { root.export-hw-report(); } }
+                            }
+                        }
+                    }
+
+                    // Page 9: Hotspot & Failover
+                    if active-page == 9: VerticalLayout {
+                        spacing: Tokens.space-md;
+
+                        // Active Uplink & Path Card
+                        HeroCard {
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                Text {
+                                    text: root.active-path-diagram;
+                                    color: Theme.text;
+                                    font-size: Tokens.font-md * Theme.font-scale;
+                                    font-weight: 800;
+                                    horizontal-stretch: 1;
+                                    vertical-alignment: center;
+                                    wrap: word-wrap;
+                                }
+                                StatusPill {
+                                    text: root.path-verification-label;
+                                    badge-color: root.path-verification-label == "Verified" ? Theme.success : Theme.warning;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                            Text { text: root.hotspot-status-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                        }
+
+                        // 1. Uplink Source Selector
+                        ModernCard {
+                            title: "1. Internet Source (Uplink Selector)";
+                            subtitle: "Select source for Hotspot sharing — unsupported or disconnected sources remain disabled";
+                            glyph: "⇄";
+                            for up in root.uplink-items: Rectangle {
+                                height: 64px;
+                                background: root.selected-uplink-id == up.id ? Theme.primary.with-alpha(0.14) : Theme.input-bg;
+                                border-radius: Tokens.radius-sm;
+                                border-width: 1px;
+                                border-color: root.selected-uplink-id == up.id ? Theme.primary : Theme.border-subtle;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: Tokens.space-sm;
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        alignment: center;
+                                        Text { text: up.kind + ": " + up.name + " (" + up.interface + ")"; color: Theme.text; font-size: Tokens.font-sm * Theme.font-scale; font-weight: 700; overflow: elide; }
+                                        Text { text: up.state + " • " + up.note; color: Theme.text-muted; font-size: Tokens.font-xs * Theme.font-scale; overflow: elide; }
+                                    }
+                                    StatusPill {
+                                        text: up.health;
+                                        badge-color: up.health == "Healthy" ? Theme.success : up.health == "Offline" ? Theme.error : Theme.warning;
+                                        pulse: false;
+                                        y: 17px;
+                                    }
+                                    ModernButton {
+                                        label: root.selected-uplink-id == up.id ? "Selected" : "Select";
+                                        primary: root.selected-uplink-id == up.id;
+                                        enabled: up.available;
+                                        y: 13px;
+                                        clicked => { root.select-uplink(up.id); }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. VPN Sharing & Leak Guard
+                        if root.vpn-detected || root.selected-uplink-id == "vpn": ModernCard {
+                            title: "2. VPN Sharing & Leak Guard";
+                            subtitle: "Client traffic over VPN is marked Unverified until nftables/policy routing is confirmed";
+                            glyph: "🛡";
+                            Text { text: root.vpn-summary-text; color: Theme.warning; font-size: Tokens.font-sm * Theme.font-scale; wrap: word-wrap; }
+                            ToggleSwitch {
+                                label: "Fail-Closed Kill-Switch (Block client traffic if VPN drops)";
+                                description: "Applies Linux nftables forward drop rule (requires pkexec/admin privilege).";
+                                checked <=> root.vpn-fail-closed;
+                                toggled(val) => { root.toggle-vpn-fail-closed(val); }
+                            }
+                        }
+
+                        // 3. AP Configuration
+                        ModernCard {
+                            title: "3. Hotspot Access Point Configuration";
+                            subtitle: "Card: " + root.ap-wifi-device + " • " + root.ap-cap-note;
+                            glyph: "≋";
+                            if root.ap-wifi-active && !root.ap-sta-ap-concurrent: Rectangle {
+                                height: 42px;
+                                background: Theme.warning.with-alpha(0.16);
+                                border-radius: Tokens.radius-sm;
+                                border-width: 1px;
+                                border-color: Theme.warning.with-alpha(0.5);
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    Text {
+                                        text: "⚠ Active Wi-Fi will be disconnected when Hotspot starts (card lacks STA+AP concurrency).";
+                                        color: Theme.warning;
+                                        font-size: Tokens.font-xs * Theme.font-scale;
+                                        font-weight: 700;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.hotspot-ssid-text; placeholder: "Hotspot SSID"; horizontal-stretch: 1; }
+                                ModernTextField { text <=> root.hotspot-pass-text; placeholder: "Password (8+ chars)"; input-type: password; horizontal-stretch: 1; }
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                alignment: start;
+                                PillChip { label: "Band: Auto"; active: root.ap-band-idx == 0; clicked => { root.ap-band-idx = 0; } }
+                                PillChip { label: "2.4 GHz"; active: root.ap-band-idx == 1; clicked => { root.ap-band-idx = 1; } }
+                                if root.ap-5g-supported: PillChip { label: "5 GHz"; active: root.ap-band-idx == 2; clicked => { root.ap-band-idx = 2; } }
+                                if !root.ap-5g-supported: ModernButton { label: "5 GHz (Unsupported)"; enabled: false; }
+                                PillChip { label: "WPA2"; active: !root.ap-use-wpa3; clicked => { root.ap-use-wpa3 = false; } }
+                                if root.ap-wpa3-supported: PillChip { label: "WPA3"; active: root.ap-use-wpa3; clicked => { root.ap-use-wpa3 = true; } }
+                                if !root.ap-wpa3-supported: ModernButton { label: "WPA3 (Unsupported by driver)"; enabled: false; }
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton {
+                                    label: Tr.btn-hs-on;
+                                    primary: true;
+                                    enabled: !root.hotspot-active;
+                                    clicked => { root.start-hotspot-configured(root.hotspot-ssid-text, root.hotspot-pass-text, root.ap-band-idx, root.ap-use-wpa3); }
+                                }
+                                ModernButton { label: Tr.btn-hs-off; danger: true; enabled: root.hotspot-active; clicked => { root.toggle-hotspot(false); } }
+                            }
+                        }
+
+                        // 4. Connected Clients & Aggregate Traffic
+                        ModernCard {
+                            title: "4. Connected Clients & Interface Traffic";
+                            subtitle: "Per-client byte counters & Kick/Block require nftables/hostapd_cli (Backend Required)";
+                            glyph: "◔";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: Tr.hotspot-clients; value: root.hotspot-clients-text; accent: Theme.primary; horizontal-stretch: 1; }
+                                KpiTile { label: "Interface Traffic"; value: root.hotspot-traffic-text; accent: Theme.info; horizontal-stretch: 2; }
+                            }
+                            if root.hotspot-clients.length == 0: EmptyState {
+                                glyph: "○";
+                                title: "No connected Hotspot clients";
+                                subtitle: "Connected stations from iw station dump will appear here.";
+                            }
+                            for cl in root.hotspot-clients: Rectangle {
+                                height: 38px;
+                                background: Theme.input-bg;
+                                border-radius: Tokens.radius-xs;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: Tokens.space-sm;
+                                    Text { text: cl.mac; color: Theme.accent; font-size: 12.5px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: cl.ip; color: Theme.text; font-size: 12.5px; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: cl.hostname; color: Theme.text-muted; font-size: 12px; horizontal-stretch: 1; vertical-alignment: center; }
+                                    ModernButton { label: "Block (Backend Req.)"; enabled: false; y: 0px; }
+                                }
+                            }
+                        }
+
+                        // 5. Failover Policy (Priority vs Auto-Monitor)
+                        ModernCard {
+                            title: Tr.lbl-failover;
+                            subtitle: "Route Priority Policy (Implemented) vs Auto Health Failover (Backend Required)";
+                            glyph: "⇄";
+                            Text { text: Tr.failover-priority-note; color: Theme.warning; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            Text { text: root.failover-status-text; color: Theme.text-muted; font-size: Tokens.font-sm; }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: Tr.btn-wifi; clicked => { root.apply-failover(0); } }
+                                ModernButton { label: Tr.btn-eth; clicked => { root.apply-failover(1); } }
+                                ModernButton { label: Tr.btn-cell; clicked => { root.apply-failover(2); } }
+                                ModernButton { label: "Auto Health Failover (Backend Req.)"; enabled: false; }
+                            }
+                        }
+                    }
+
+                    // Page 10: History & Data Usage
+                    if active-page == 10: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-history;
+                            glyph: "◔";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                KpiTile { label: Tr.lbl-download; value: root.dl-speed; accent: Theme.success; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-upload; value: root.ul-speed; accent: Theme.primary; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-today; value: root.today-usage; horizontal-stretch: 1; }
+                                KpiTile { label: Tr.lbl-month; value: root.month-usage; horizontal-stretch: 1; }
+                            }
+                            LiveSvgChart {
+                                title: Tr.chart-title;
+                                path-commands: root.signal-chart-path;
+                            }
+                            Text { text: root.history-summary-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: "Export CSV"; clicked => { root.export-history-csv(); } }
+                                ModernButton { label: "Export JSON"; clicked => { root.export-history-json(); } }
+                                ModernButton { label: "Clear History"; danger: true; clicked => { root.clear-history(); } }
+                            }
+                        }
+                    }
+
+                    // Page 11: Pro Tools & Safe AT Terminal
+                    if active-page == 11: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-scanner;
+                            subtitle: "⚠ Scanning visible cellular networks may temporarily interrupt active mobile data.";
+                            glyph: "◎";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton { label: "Auto"; clicked => { root.set-network-mode(0); } }
+                                ModernButton { label: "4G Only"; clicked => { root.set-network-mode(3); } }
+                                ModernButton { label: root.supports-5g ? "5G Preferred" : "5G (Unsupported)"; enabled: root.supports-5g; clicked => { root.set-network-mode(6); } }
+                                ModernButton { label: Tr.btn-scan-net; primary: true; enabled: !root.is-busy; clicked => { root.run-network-scan(); } }
+                                ModernButton { label: Tr.btn-auto-reg; enabled: !root.is-busy; clicked => { root.register-auto-network(); } }
+                            }
+                            Text { text: root.scanner-output-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                            for net in root.scan-results: Rectangle {
+                                height: 38px;
+                                background: Theme.input-bg;
+                                border-radius: Tokens.radius-xs;
+                                border-width: 1px;
+                                border-color: Theme.border-subtle;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    Text { text: net.operator + " (" + net.code + ")"; color: Theme.text; font-size: 12.5px; font-weight: 700; horizontal-stretch: 2; vertical-alignment: center; }
+                                    Text { text: net.tech; color: Theme.accent; font-size: 12.5px; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: net.availability; color: Theme.text-muted; font-size: 12px; horizontal-stretch: 1; vertical-alignment: center; }
+                                    ModernButton { label: "Register"; primary: true; width: 88px; y: 0px; clicked => { root.register-operator(net.code); } }
+                                }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-antenna;
+                            glyph: "⌖";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.antenna-pos-text; placeholder: Tr.ph-antenna; horizontal-stretch: 1; }
+                                ModernButton { label: Tr.btn-rec-pos; primary: true; clicked => { root.record-antenna-pos(root.antenna-pos-text); } }
+                            }
+                            Text { text: root.antenna-output-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-at;
+                            glyph: "⌘";
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernTextField { text <=> root.at-cmd-text; placeholder: "ATI, AT+CSQ, AT^CELLINFO, AT^CA_INFO"; horizontal-stretch: 1; }
+                                ModernButton { label: Tr.btn-run-at; primary: true; clicked => { root.run-at-command(root.at-cmd-text, root.at-allow-write); } }
+                            }
+                            ToggleSwitch {
+                                label: Tr.lbl-at-write;
+                                description: Tr.sub-at-write;
+                                checked <=> root.at-allow-write;
+                            }
+                            Text { text: root.at-output-text; color: Theme.text-muted; font-size: Tokens.font-sm; wrap: word-wrap; }
+                        }
+                    }
+
+                    // Page 12: Settings & About
+                    if active-page == 12: VerticalLayout {
+                        spacing: Tokens.space-md;
+                        ModernCard {
+                            title: Tr.lbl-settings;
+                            glyph: "☰";
+                            ToggleSwitch { label: Tr.set-tray; description: Tr.sub-tray; checked <=> root.pref-close-to-tray; }
+                            ToggleSwitch { label: Tr.set-autostart; description: Tr.sub-autostart; checked <=> root.pref-start-with-system; }
+                            ToggleSwitch { label: Tr.set-bg; description: Tr.sub-bg; checked <=> root.pref-bg-monitor; }
+                            ToggleSwitch { label: Tr.set-notif; description: Tr.sub-notif; checked <=> root.pref-notifications; }
+                            ToggleSwitch { label: Tr.set-motion; description: Tr.sub-motion; checked <=> root.pref-reduced-motion; }
+                            ToggleSwitch { label: Tr.set-remote; description: Tr.sub-remote; checked <=> root.pref-remote-server; }
+
+                            Text { text: Tr.lbl-language; color: Theme.text; font-size: Tokens.font-sm; font-weight: 700; }
+                            HorizontalLayout {
+                                alignment: start;
+                                spacing: Tokens.space-xs;
+                                PillChip { label: "English"; active: root.pref-language == "en"; clicked => { root.set-language("en"); } }
+                                PillChip { label: "فارسی"; active: root.pref-language == "fa"; clicked => { root.set-language("fa"); } }
+                                PillChip { label: "العربية"; active: root.pref-language == "ar"; clicked => { root.set-language("ar"); } }
+                                PillChip { label: "Türkçe"; active: root.pref-language == "tr"; clicked => { root.set-language("tr"); } }
+                                PillChip { label: "Deutsch"; active: root.pref-language == "de"; clicked => { root.set-language("de"); } }
+                                PillChip { label: "Français"; active: root.pref-language == "fr"; clicked => { root.set-language("fr"); } }
+                                PillChip { label: "Español"; active: root.pref-language == "es"; clicked => { root.set-language("es"); } }
+                                PillChip { label: "Русский"; active: root.pref-language == "ru"; clicked => { root.set-language("ru"); } }
+                            }
+                            Text { text: "Text Size / اندازه متن"; color: Theme.text; font-size: Tokens.font-sm * Theme.font-scale; font-weight: 700; }
+                            HorizontalLayout {
+                                alignment: start;
+                                spacing: Tokens.space-xs;
+                                PillChip { label: "Small"; active: root.font-size-preset == "small"; clicked => { root.set-font-size("small"); } }
+                                PillChip { label: "Default"; active: root.font-size-preset == "default"; clicked => { root.set-font-size("default"); } }
+                                PillChip { label: "Large"; active: root.font-size-preset == "large"; clicked => { root.set-font-size("large"); } }
+                                PillChip { label: "Extra Large"; active: root.font-size-preset == "xlarge"; clicked => { root.set-font-size("xlarge"); } }
+                            }
+                            HorizontalLayout {
+                                spacing: Tokens.space-sm;
+                                ModernButton {
+                                    label: Tr.btn-save-prefs;
+                                    glyph: "✓";
+                                    primary: true;
+                                    clicked => {
+                                        root.save-preferences(
+                                            root.pref-close-to-tray,
+                                            root.pref-start-with-system,
+                                            root.pref-bg-monitor,
+                                            root.pref-notifications,
+                                            root.pref-reduced-motion,
+                                            root.pref-remote-server,
+                                        );
+                                    }
+                                }
+                                ModernButton { label: Tr.btn-quit; glyph: "⏻"; danger: true; clicked => { root.quit-app(); } }
+                            }
+                        }
+                        ModernCard {
+                            title: Tr.lbl-about;
+                            glyph: "ⓘ";
+                            Text {
+                                text: "ModemDeck v" + root.app-version + " — WWAN & Mobile Broadband Manager powered by Rust & Slint (GPL-3.0-or-later). Website: https://milmit.net";
+                                color: Theme.text-muted;
+                                font-size: Tokens.font-sm;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Collapsible Live Debug & Error Console
+            if root.debug-open: Rectangle {
+                height: 175px;
+                background: Theme.sidebar-bg;
+                border-width: 1px;
+                border-color: Theme.accent.with-alpha(0.45);
+                VerticalLayout {
+                    padding: Tokens.space-sm;
+                    spacing: Tokens.space-xs;
+                    HorizontalLayout {
+                        spacing: Tokens.space-sm;
+                        Text {
+                            text: "🐛 " + Tr.debug-title;
+                            color: Theme.accent;
+                            font-size: Tokens.font-xs * Theme.font-scale;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        ModernButton {
+                            label: Tr.debug-copy;
+                            ghost: true;
+                            clicked => { root.copy-debug-log(); }
+                        }
+                        ModernButton {
+                            label: Tr.debug-clear;
+                            ghost: true;
+                            clicked => { root.clear-debug-log(); }
+                        }
+                    }
+                    ScrollView {
+                        vertical-stretch: 1;
+                        Text {
+                            text: root.debug-log-text;
+                            color: Theme.text-muted;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Collapsible Sidebar (Right in RTL)
+        if Theme.is-rtl: SidebarPanel {
+            active-page <=> root.active-page;
+            sidebar-collapsed <=> root.sidebar-collapsed;
+            complexity: root.complexity;
+            app-version: root.app-version;
+        }
+    }
+}

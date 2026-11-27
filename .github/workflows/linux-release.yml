@@ -1,119 +1,124 @@
-name: Build Linux packages
+name: Linux quality and package build
 
 on:
-  workflow_dispatch:
+  pull_request:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  ubuntu-amd64:
+  security-audit:
     runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Audit locked dependencies
+        run: cargo audit
 
+  linux-packages:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install Rust
+      - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
 
-      - name: Install build dependencies
+      - name: Install system build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential pkg-config libgtk-4-dev libglib2.0-dev libudev-dev \
-            modemmanager network-manager pkexec file librsvg2-dev \
-            libgirepository1.0-dev desktop-file-utils libfuse2
+          sudo apt-get install -y build-essential pkg-config libudev-dev libfontconfig1-dev \
+            libxkbcommon-dev desktop-file-utils appstream dpkg-dev file libfuse2t64 \
+            squashfs-tools patchelf
 
-      - name: Build Rust binary
-        run: cargo build --release
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-      - name: Build Debian package
-        run: ./packaging/build-deb.sh
+      - name: Check all targets
+        run: cargo check --locked --all-targets
 
-      - name: Build AppImage
-        run: ./packaging/build-appimage.sh
+      - name: Run Clippy
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
-      - name: Build source archive and checksums
-        shell: bash
+      - name: Run tests
+        run: cargo test --locked --all-targets
+
+      - name: Validate desktop metadata
         run: |
-          set -euo pipefail
-          VERSION="$(awk -F'"' '/^version = / {print $2; exit}' Cargo.toml)"
-          mkdir -p target/dist
-          tar \
-            --exclude='.git' \
-            --exclude='target' \
-            -czf "target/dist/MilMit-ModemDeck-${VERSION}-linux-source.tar.gz" .
-          (cd target/dist && sha256sum MilMit-ModemDeck-* > SHA256SUMS.txt)
+          desktop-file-validate data/net.milmit.ModemDeck.desktop
+          appstreamcli validate --no-net --pedantic data/net.milmit.ModemDeck.metainfo.xml
 
-      - name: Upload workflow artifacts
+      - name: Validate JSON data and version metadata
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = [path for path in Path('.').rglob('*.json')
+                   if '.git' not in path.parts and 'target' not in path.parts]
+          for path in files:
+              json.loads(path.read_text(encoding='utf-8'))
+          print(f"Validated {len(files)} JSON files")
+          PY
+          ./scripts/validate-release.sh --metadata-only
+
+      - name: Build release binary and Debian package
+        run: |
+          cargo build --release --locked
+          ./packaging/build-deb.sh
+          ./packaging/build-appimage.sh
+          ./packaging/build-portable.sh
+          if [[ "${{ matrix.arch }}" == aarch64 ]]; then
+            expected_deb_arch=arm64
+            file target/release/modemdeck | grep -qi aarch64
+          else
+            expected_deb_arch=amd64
+            file target/release/modemdeck | grep -qi 'x86-64'
+          fi
+          deb="$(find target/dist -maxdepth 1 -name '*.deb' -print -quit)"
+          [[ "$(dpkg-deb -f "$deb" Architecture)" == "$expected_deb_arch" ]]
+          version="$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; print(json.load(sys.stdin)["packages"][0]["version"])')"
+          mkdir -p target/package-smoke/deb
+          dpkg-deb --extract "$deb" target/package-smoke/deb
+          [[ "$(target/package-smoke/deb/usr/bin/modemdeck --version)" == "ModemDeck $version" ]]
+          [[ "$(target/appimage/ModemDeck.AppDir/usr/bin/modemdeck --version)" == "ModemDeck $version" ]]
+          tar -xzf "$(find target/dist -maxdepth 1 -name '*tar.gz' -print -quit)" -C target/package-smoke
+          [[ "$(target/package-smoke/ModemDeck/bin/modemdeck --version)" == "ModemDeck $version" ]]
+
+      - name: Create source archive for version tags
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.arch == 'x86_64'
+        run: ./packaging/build-source.sh
+
+      - name: Generate artifact checksums
+        run: ./scripts/generate-checksums.sh target/dist
+
+      - name: Upload review artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MilMit-ModemDeck-Linux-amd64
+          name: ModemDeck-linux-${{ matrix.arch }}-${{ github.sha }}
           path: target/dist/*
-
-      - name: Publish versioned GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${GITHUB_REF_NAME}" target/dist/* \
-            --title "ModemDeck Linux ${GITHUB_REF_NAME}" \
-            --generate-notes
-
-      - name: Publish approved RC release
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          [[ -f .github/FINAL_RELEASE ]] || exit 0
-          VERSION="$(awk -F'"' '/^version = / {print $2; exit}' Cargo.toml)"
-          TAG="$(tr -d '\r\n ' < .github/FINAL_RELEASE)"
-          EXPECTED="v${VERSION}"
-          if [[ "$TAG" != "$EXPECTED" ]]; then
-            echo "FINAL_RELEASE says $TAG but Cargo.toml says $EXPECTED" >&2
-            exit 1
-          fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Official release $TAG already exists; leaving it unchanged."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" "${GITHUB_SHA}" -m "ModemDeck Linux $TAG"
-          git push origin "$TAG"
-          gh release create "$TAG" target/dist/* \
-            --title "ModemDeck Linux $TAG" \
-            --notes-file .github/RELEASE_NOTES.md \
-            --prerelease
-
-      - name: Publish latest nightly prerelease
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -f nightly "${GITHUB_SHA}"
-          git push -f origin refs/tags/nightly
-          if gh release view nightly >/dev/null 2>&1; then
-            gh release upload nightly target/dist/* --clobber
-            gh release edit nightly \
-              --title "ModemDeck Linux Nightly" \
-              --notes "Automated prerelease build from the latest main branch commit." \
-              --prerelease
-          else
-            gh release create nightly target/dist/* \
-              --title "ModemDeck Linux Nightly" \
-              --notes "Automated prerelease build from the latest main branch commit." \
-              --prerelease
-          fi
+          if-no-files-found: error
+          retention-days: 14

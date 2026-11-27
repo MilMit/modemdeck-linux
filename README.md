@@ -6,25 +6,19 @@
   <img src="assets/icons/net.milmit.ModemDeck.svg" width="128" alt="ModemDeck icon">
 </p>
 
-<p align="center"><strong>Native Linux control for cellular modems — LTE, TD-LTE, 4G+, APN, SIM, messaging and diagnostics.</strong></p>
+<p align="center"><strong>Linux cellular modem management and diagnostics built with Rust + Slint.</strong></p>
 
 
-ModemDeck is a lightweight native GTK4 cellular modem manager for Ubuntu/Linux, developed by **MilMit**. It uses ModemManager/NetworkManager and small event-driven helpers instead of an Electron/Chromium runtime or a continuous `mmcli` polling loop.
+ModemDeck is an open-source **Rust + Slint** cellular modem manager for Linux, developed by **MilMit**. It uses `zbus` for ModemManager/NetworkManager D-Bus, SQLite storage, and a native `ksni` StatusNotifierItem tray — with no GTK4, Electron, or Chromium runtime dependency.
 
 
-## Tested RC release
+## Current development version: v2.0.0-beta.1 (Slint Migration)
 
-The currently tested package is **v1.0.0-rc1.4.1**. It has been built successfully by GitHub Actions and installed successfully on the target Ubuntu system.
+See [docs/SLINT_UI_GUIDE.md](docs/SLINT_UI_GUIDE.md) for the centralized Slint Design System (`ui/tokens.slint`, `ui/theme.slint`, `ui/components.slint`, `ui/main.slint`).
 
-Download the Debian package from the GitHub Releases page and install it with:
+## Current capability surface
 
-```bash
-sudo apt install ./MilMit-ModemDeck-1.0.0-rc1.4.1-amd64.deb
-```
-
-Release page: https://github.com/MilMit/modemdeck-linux/releases/tag/v1.0.0-rc1.4.1
-
-## What RC1 includes
+Features depend on modem model, firmware, ModemManager, NetworkManager, and the desktop session. The beta has passed source tests but still needs broader hardware and desktop validation.
 
 ### Radio dashboard
 
@@ -103,14 +97,16 @@ Accounting is active while the GUI or optional background monitor is running.
 
 - Supported Modems/capability page.
 - In-app release notes.
-- Update check against `https://milmit.net/modemdeck/update.json`.
+- Update check against `https://milmit.net/modemdeck/update.json`, with fallback to the public GitHub Releases API.
 - `server/update.json.example` for publishing the manifest on MilMit.
 - Report-a-problem / MilMit website integration.
 - Privacy-safe diagnostics export: IMEI/equipment IDs are intentionally omitted.
-- English/Persian language preference and translation infrastructure.
+- Eight language catalogs with mechanically validated key and placeholder coverage; visual translation and RTL review remain pending.
 - MilMit About/website/package metadata.
 
-## Verified Dell/Foxconn DW5821e results
+## Previously verified Dell/Foxconn DW5821e results
+
+The results below came from the earlier RC hardware session and have not yet been revalidated against the v2 beta build.
 
 Testing on the target Ubuntu laptop has verified the `T77W968 / DW5821e Snapdragon X20 LTE` path:
 
@@ -141,12 +137,13 @@ Support varies by exact modem and firmware. Controls that are unsupported or not
 
 ## GitHub releases
 
-GitHub Actions builds packages on every push to `main`. The workflow also publishes/refreshes a `nightly` prerelease with the latest binaries. Version tags (`v*`) create versioned releases containing:
+GitHub Actions validates source changes and builds review artifacts. It does not publish a release or move tags automatically. Versioned release publication is a separate, manually reviewed step. The current workspace version is a beta candidate and has not been published as a release.
 
-- `MilMit-ModemDeck-<version>-amd64.deb` — recommended Ubuntu package
-- `MilMit-ModemDeck-<version>-x86_64.AppImage` — portable build
-- `MilMit-ModemDeck-<version>-linux-source.tar.gz` — source snapshot
-- `SHA256SUMS.txt` — checksums for release assets
+Planned release assets:
+
+- `ModemDeck-<version>-linux-x86_64.deb` — Ubuntu/Debian package
+- `ModemDeck-<version>-linux-x86_64.AppImage` — portable build, when validated
+- source archive and checksums for validated release assets
 
 See `docs/PUBLISHING.md` to publish the repository and create a release directly from Ubuntu.
 
@@ -184,7 +181,7 @@ This installs the binary, desktop entry, user systemd unit and GNOME extension f
 ./packaging/build-deb.sh
 ```
 
-The `.deb` is written under `target/`.
+The `.deb` is written under `target/dist/` when built directly. `packaging/build-all.sh` separates release artifacts by version and actual host architecture under `target/dist/<version>/linux-<architecture>/`.
 
 ## Self-check
 
@@ -196,15 +193,15 @@ It checks ModemManager, NetworkManager tools, PolicyKit helper availability, upd
 
 ## Translation
 
-Preferences support System / English / فارسی. The main UI is translated through stable translation keys plus a migration layer for legacy labels. Language changes are applied on restart.
+The UI includes English, Persian, Arabic, Turkish, German, French, Spanish, and Russian catalogs. Translation coverage is mechanically checked; human review and in-context RTL testing remain release checks.
 
 ## Update manifest on milmit.net
 
-Copy `server/update.json.example` to the web location used by RC1:
+Copy `server/update.json.example` to the production URL only after publishing a reviewed release:
 
 `https://milmit.net/modemdeck/update.json`
 
-Update `version`, `url` and `notes` for each release. ModemDeck sends no analytics in this check; it only downloads that small JSON manifest.
+Update `version`, `url` and `notes` for each release. The live URL currently returns 404, so the application falls back to GitHub Releases. The check sends no analytics, never replaces a package-manager-installed binary, and does not yet verify download checksums or signatures.
 
 ## Privacy and logs
 

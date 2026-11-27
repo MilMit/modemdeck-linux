@@ -1,0 +1,46 @@
+// Centralized Design Tokens for ModemDeck v2.0 Slint UI
+
+export enum AppThemeMode {
+    dark,
+    light,
+    high-contrast,
+}
+
+export enum UiComplexityMode {
+    basic,
+    advanced,
+    expert,
+}
+
+export global Tokens {
+    // Spacing scale
+    out property <length> space-xxs: 2px;
+    out property <length> space-xs: 4px;
+    out property <length> space-sm: 8px;
+    out property <length> space-md: 12px;
+    out property <length> space-lg: 16px;
+    out property <length> space-xl: 24px;
+
+    // Radii
+    out property <length> radius-xs: 6px;
+    out property <length> radius-sm: 10px;
+    out property <length> radius-md: 14px;
+    out property <length> radius-lg: 18px;
+    out property <length> radius-pill: 999px;
+
+    // Typography (readable desktop scale)
+    out property <length> font-xs: 12px;
+    out property <length> font-sm: 13.5px;
+    out property <length> font-md: 15px;
+    out property <length> font-lg: 18px;
+    out property <length> font-xl: 22px;
+    out property <length> font-hero: 30px;
+
+    // Window dimensions
+    out property <length> win-min-w: 840px;
+    out property <length> win-min-h: 600px;
+    out property <length> win-default-w: 1220px;
+    out property <length> win-default-h: 840px;
+    out property <length> sidebar-expanded-w: 248px;
+    out property <length> sidebar-collapsed-w: 70px;
+}
