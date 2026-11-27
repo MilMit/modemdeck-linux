@@ -419,7 +419,9 @@ fn test_hardware_database_and_vid_pid_mapping() {
 fn test_global_operator_database_mvno_and_xml_parser() {
     let db = crate::operators::OperatorDatabase::global();
     assert!(db.operator_count() >= 19);
-    assert!(db.country_count() >= 9);
+    // The bundled registries cover eight countries. Additional countries may
+    // come from the optional host mobile-broadband-provider-info XML database.
+    assert!(db.country_count() >= 8);
 
     // Irancell exact match
     let ir = db.identify("432-35", "Irancell", "", "432-35", "Irancell", false, None);
