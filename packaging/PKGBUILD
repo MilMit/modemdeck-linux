@@ -1,5 +1,5 @@
 pkgname=modemdeck
-pkgver=2.0.0.beta.1
+pkgver=2.0.0
 pkgrel=1
 pkgdesc='WWAN and mobile broadband manager for Linux'
 arch=('x86_64')

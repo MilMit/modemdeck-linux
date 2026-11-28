@@ -1,12 +1,12 @@
 name: modemdeck
 base: core24
-version: '2.0.0-beta.1'
+version: '2.0.0'
 summary: Cross-platform cellular modem manager & analyzer by MilMit
 description: |
   ModemDeck is a modern Rust + Slint cellular modem manager for Linux with live
   signal telemetry, safe band controls, global operator & Auto APN database,
   SMS/USSD/voice controls, System Tray, Modem Doctor, and multi-vendor diagnostics.
-grade: devel
+grade: stable
 confinement: strict
 
 apps:
@@ -28,7 +28,7 @@ apps:
 parts:
   modemdeck:
     plugin: rust
-    source: ..
+    source: .
     build-packages:
       - pkg-config
       - libfontconfig-dev
@@ -38,6 +38,7 @@ parts:
       - libfontconfig1
       - libxkbcommon0
     override-build: |
+      rustup default 1.98.1
       craftctl default
       install -Dm755 target/release/modemdeck "$CRAFT_PART_INSTALL/usr/bin/modemdeck"
       install -Dm644 data/net.milmit.ModemDeck.desktop "$CRAFT_PART_INSTALL/usr/share/applications/net.milmit.ModemDeck.desktop"

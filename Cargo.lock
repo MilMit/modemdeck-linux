@@ -2831,7 +2831,7 @@ dependencies = [
 
 [[package]]
 name = "modemdeck"
-version = "2.0.0-beta.1"
+version = "2.0.0"
 dependencies = [
  "ksni",
  "reqwest",

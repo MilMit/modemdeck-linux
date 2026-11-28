@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.0.0--beta.1-38bdf8?style=for-the-badge&logo=rust&logoColor=white" alt="Version 2.0.0-beta.1">
+  <img src="https://img.shields.io/badge/Version-2.0.0-38bdf8?style=for-the-badge&logo=rust&logoColor=white" alt="Version 2.0.0">
   <img src="https://img.shields.io/badge/UI-Slint%201.19.1-2563eb?style=for-the-badge" alt="Slint 1.19.1">
   <img src="https://img.shields.io/badge/D--Bus-zbus%206.5%20Async-10b981?style=for-the-badge" alt="zbus 6.5">
   <img src="https://img.shields.io/badge/Storage-SQLite%20WAL%20%2B%20JSON-f59e0b?style=for-the-badge" alt="SQLite WAL">
@@ -17,7 +17,7 @@
 
 ---
 
-## ✨ What's New in v2.0.0-beta.1 (Rust + Slint Overhaul)
+## ✨ What's New in v2.0.0 (Rust + Slint Overhaul)
 
 - **🎨 Centralized Slint Design System**: Built from scratch with [tokens.slint](ui/tokens.slint), [theme.slint](ui/theme.slint), [components.slint](ui/components.slint), [tr.slint](ui/tr.slint), and [main.slint](ui/main.slint) — supporting **Dark**, **Light**, and **High-Contrast** themes, **4 font-scale presets** (`Small`, `Default`, `Large`, `Extra Large`), **Basic / Advanced / Expert** UI modes, and **Reduced Motion**.
 - **🌍 8 Languages + True RTL Layout**: Live, zero-restart switching across **English, فارسی (RTL), العربية (RTL), Türkçe, Deutsch, Français, Español, Русский** with 100% validated key coverage ([catalog.rs](src/i18n/catalog.rs), [validation.rs](src/i18n/validation.rs)). In RTL locales, the sidebar, navigation indicators, card headers, and controls mirror cleanly while keeping technical values (`RSRP: -87 dBm`, `B1+B3+B7`, `432-35`, `AT+CSQ`) readable.
@@ -62,8 +62,10 @@
 
 ## 🚀 Build, Test & Install (Ubuntu / Linux)
 
+The current stable version is **2.0.0**. Download validated Linux packages from the [GitHub Releases page](https://github.com/MilMit/modemdeck-linux/releases/latest).
+
 ### Prerequisites
-- Rust toolchain (`rustc >= 1.85`, edition `2024`)
+- Rust toolchain (`rustc >= 1.95`, edition `2024`)
 - `ModemManager`, `NetworkManager`, `libdbus-1-dev`, `pkg-config`, `iw`
 
 ### Verify & Test

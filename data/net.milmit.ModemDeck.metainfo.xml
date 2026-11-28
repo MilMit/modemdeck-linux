@@ -39,9 +39,9 @@
   </keywords>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="2.0.0-beta.1" date="2026-11-27" type="development">
+    <release version="2.0.0" date="2026-11-28" type="stable">
       <description>
-        <p>First public beta candidate for the Rust and Slint migration. This build requires wider desktop and modem hardware validation before a stable release.</p>
+        <p>First stable ModemDeck 2 release after validation of the Rust and Slint migration.</p>
       </description>
     </release>
     <release version="1.0.0-rc1.4.1" date="2026-09-23" type="development">

@@ -1,3 +1,9 @@
+## 2.0.0 — Stable release
+
+- Promoted the Rust and Slint migration from the public beta candidate to the first stable ModemDeck 2 release.
+- Aligned Debian, RPM, Snap, Arch, AppStream, and update-channel metadata with version 2.0.0.
+- Preserved hardware-dependent availability notes: modem controls continue to depend on device firmware and host ModemManager/NetworkManager services.
+
 ## 2.0.0-beta.1 — Rust + Slint Migration Candidate (pre-release)
 
 - **Complete GTK4 Removal & Slint 1.19.1 UI**:

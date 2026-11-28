@@ -1,6 +1,6 @@
-# ModemDeck v2.0.0-beta.1 Feature Matrix (Rust + Slint; pre-release)
+# ModemDeck v2.0.0 Feature Matrix (Rust + Slint)
 
-| Feature | v2.0.0-beta.1 Status |
+| Feature | v2.0.0 Status |
 |---|---|
 | APN create/edit/select/delete | Implemented via NetworkManager |
 | APN optional password | Write-only to NetworkManager; not stored by ModemDeck |
