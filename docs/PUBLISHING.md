@@ -9,7 +9,7 @@ Run `./scripts/validate-release.sh` from the repository root. It checks formatti
 ## Review and release
 
 1. Review `git status`, `git diff --check`, and every staged file. Keep local configuration, credentials, and unvalidated artifacts out of the commit.
-2. Confirm the intended release version and check both local and remote tags/releases. The current candidate is a pre-release.
+2. Confirm the intended release version and check both local and remote tags/releases. The current release target is `v2.0.0`.
 3. Build and validate packages for the actual target architectures. Do not rename artifacts to claim another architecture.
 4. Generate SHA256 checksums after all artifacts are final.
 5. Commit and push to the existing `origin` only after maintainer approval.

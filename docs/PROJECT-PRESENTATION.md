@@ -12,7 +12,7 @@ ModemDeck is an open-source Linux desktop app for inspecting and managing WWAN a
 
 ModemDeck brings cellular modem status, radio diagnostics, supported-band controls, SIM and APN tools, traffic history, and modem troubleshooting into one Linux desktop application. It communicates with the host's ModemManager and NetworkManager services. The interface is built with Slint and the application logic is written in Rust.
 
-Available controls depend on the modem model, firmware, ModemManager version, system services, and desktop session. Band changes use a confirmation and rollback flow; modem-specific features remain unavailable when the device does not expose a supported operation. The v2.0.0-beta.1 source is a prerelease candidate and still needs broader desktop and hardware validation.
+Available controls depend on the modem model, firmware, ModemManager version, system services, and desktop session. Band changes use a confirmation and rollback flow; modem-specific features remain unavailable when the device does not expose a supported operation. Version 2.0.0 is the first stable release after validation on supported hardware and desktop environments.
 
 ### Feature summary
 
@@ -39,7 +39,7 @@ ModemDeck یک برنامهٔ متن‌باز دسکتاپ لینوکس برای
 
 ModemDeck وضعیت مودم سلولی، اطلاعات رادیویی، کنترل باندهای پشتیبانی‌شده، ابزارهای سیم‌کارت و APN، تاریخچهٔ ترافیک و عیب‌یابی مودم را در یک برنامهٔ دسکتاپ لینوکس گرد هم می‌آورد. این برنامه با سرویس‌های ModemManager و NetworkManager سیستم کار می‌کند؛ رابط کاربری آن با Slint و منطق برنامه با Rust نوشته شده است.
 
-دسترسی به هر قابلیت به مدل مودم، میان‌افزار، نسخهٔ ModemManager، سرویس‌های سیستم و نشست دسکتاپ بستگی دارد. تغییر باند با تأیید کاربر و امکان بازگردانی انجام می‌شود؛ قابلیت‌های وابسته به سازنده فقط هنگامی در دسترس‌اند که دستگاه عملیات پشتیبانی‌شده‌ای ارائه کند. کد نسخهٔ `v2.0.0-beta.1` پیش‌انتشار است و هنوز به آزمون گسترده‌تر روی سخت‌افزار و محیط‌های دسکتاپ نیاز دارد.
+دسترسی به هر قابلیت به مدل مودم، میان‌افزار، نسخهٔ ModemManager، سرویس‌های سیستم و نشست دسکتاپ بستگی دارد. تغییر باند با تأیید کاربر و امکان بازگردانی انجام می‌شود؛ قابلیت‌های وابسته به سازنده فقط هنگامی در دسترس‌اند که دستگاه عملیات پشتیبانی‌شده‌ای ارائه کند. نسخهٔ ۲٫۰٫۰ نخستین انتشار پایدار پس از آزمون روی سخت‌افزار و محیط‌های دسکتاپ پشتیبانی‌شده است.
 
 ### ویژگی‌ها
 

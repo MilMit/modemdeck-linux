@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0-beta.1",
-  "channel": "beta",
-  "url": "https://github.com/MilMit/modemdeck-linux/releases/tag/v2.0.0-beta.1",
-  "notes": "ModemDeck v2.0.0-beta.1 is a prerelease candidate. Use your distribution package manager for installed packages."
+  "version": "2.0.0",
+  "channel": "stable",
+  "url": "https://github.com/MilMit/modemdeck-linux/releases/tag/v2.0.0",
+  "notes": "ModemDeck 2.0.0 is the first stable release of the Rust and Slint application. Use your distribution package manager for installed packages."
 }
